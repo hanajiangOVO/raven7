@@ -23,6 +23,21 @@
     <!-- 星空图缩放库 -->
     <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <style>
+        /* ====== 【【新增】】HTML内容防溢出安全网 ====== */
+        .html-content-bubble > * {
+            /* 核心规则：让HTML内容的最大宽度不超过其父容器（也就是我们的透明气泡） */
+            max-width: 100% !important;
+            /* 确保元素的边框和内边距被包含在其总宽度内，这是防止溢出的关键 */
+            box-sizing: border-box !important;
+        }
+
+        .html-content-bubble img {
+            /* 专门为图片设置，防止图片被拉伸变形 */
+            max-width: 100% !important;
+            height: auto !important;
+            display: block; /* 移除图片下方的多余空白 */
+        }
+
         /* ====== 【【V6.1 黑底粉字美观版】】爱之迷宫主题样式 ====== */
         #love-map-board {
             display: grid;
@@ -1537,35 +1552,150 @@
             margin-top: 0.1rem !important; /* 为每条消息之间都设置一个固定的间距 */
         }
         
+        /* 【微信聊天专属】显示头像时的消息间距 */
+        #wechat-content-chat:not(.no-avatars) .chat-message-wrapper + .chat-message-wrapper {
+            margin-top: 0.6rem !important; /* 显示头像时普通消息间距 */
+        }
+        
+        /* 【微信聊天专属】不同发送者之间增加间距 */
+        #wechat-content-chat .chat-message-wrapper.received + .chat-message-wrapper.sent,
+        #wechat-content-chat .chat-message-wrapper.sent + .chat-message-wrapper.received {
+            margin-top: 0.8rem !important; /* 角色和用户消息之间的间距 */
+        }
+        
         /* 针对多行气泡后的消息增加额外间距（仅在显示头像模式下） */
         #wechat-content-chat:not(.no-avatars) .chat-message-wrapper.has-multiline + .chat-message-wrapper {
-            margin-top: 0.7rem !important; /* 多行气泡后需要更大间距 */
+            margin-top: 0.6rem !important; /* 多行气泡后间距 */
         }
+        /* ====== 【【V10.3 - 终极间距与对齐修复方案 (用户头像修复版)】】 ====== */
+
+        .chat-message-wrapper {
+            position: relative;
+            /* 为头像腾出空间，进一步缩小间距让内容更靠近头像 */
+            padding-left: 38px;  /* 36px头像 + 2px间距 */
+            padding-right: 38px; /* 36px头像 + 2px间距 */
+        }
+
+        /* 【基础头像样式 - 微信聊天和群聊共用的基础样式】 */
         .chat-avatar {
-            width: 36px;  /* <-- 修改这里 */
-            height: 36px; /* <-- 修改这里 */
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background-color: #9ca3af;
             background-size: cover;
             background-position: center;
-            flex-shrink: 0;
             border: 2px solid rgba(255,255,255,0.5);
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            visibility: hidden;
-            position: relative; /* <-- 新增：开启相对定位 */
-            top: -5px;          /* <-- 新增：向上移动5px */
+            transition: opacity 0.2s;
+            opacity: 1; /* 默认可见 */
         }
-        /* 仅当消息是新的发言者时，才显示头像 */
-        .chat-message-wrapper.new-sender .chat-avatar {
-            visibility: visible;
+
+        /* 【微信聊天专属】头像定位：与第一行文字居中对齐 */
+        #wechat-content-chat .chat-avatar {
+            position: absolute;
+            /* 计算说明：
+               - 气泡padding-top: 0.15rem ≈ 2.4px
+               - 文字line-height: 1.5，字体16px，行高24px
+               - 第一行文字中心：2.4px + 12px = 14.4px
+               - 头像高度36px，中心在18px
+               - 所以top: 14.4px - 18px = -3.6px ≈ -4px
+            */
+            top: -4px; /* 与第一行文字中心对齐 */
         }
+        
+        /* 【微信聊天】左侧AI头像 */
+        #wechat-content-chat .chat-message-wrapper.received .chat-avatar {
+            left: 0;
+        }
+        
+        /* 【微信聊天】右侧用户头像 */
+        #wechat-content-chat .chat-message-wrapper.sent .chat-avatar {
+            right: 0;
+        }
+
+        /* 【群聊专属】头像定位：与所有气泡组居中对齐 */
+        #group-chat-content .chat-avatar {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* 群聊中用户头像（右侧sent）的完整样式 - 与角色头像保持完全一致 */
+        #group-chat-content .chat-message-wrapper.sent .chat-avatar {
+            width: 36px !important;
+            height: 36px !important;
+            right: 0 !important; /* 与角色头像left: 0保持完全对称 */
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        #group-chat-content .chat-message-wrapper.sent .chat-avatar:hover {
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
+        }
+
+        /* 群聊中用户消息的wrapper右侧padding，与角色消息左侧padding保持一致 */
+        #group-chat-content .chat-message-wrapper.sent {
+            padding-right: 38px !important; /* 36px头像 + 2px间距，与角色完全一致 */
+        }
+
+        /* 【微信聊天专属】头像显示/隐藏逻辑 */
+        /* 1. AI的消息 (received) - 微信聊天 */
+        #wechat-content-chat .chat-message-wrapper.received .chat-avatar {
+            /* 默认隐藏AI头像，只有新发言者才显示 */
+            opacity: 0; 
+        }
+        #wechat-content-chat .chat-message-wrapper.received.new-sender .chat-avatar {
+            opacity: 1; /* 新发言者，显示AI头像 */
+        }
+
+        /* 2. 用户的消息 (sent) - 微信聊天 */
+        #wechat-content-chat .chat-message-wrapper.sent .chat-avatar {
+            /* 用户头像也采用相同逻辑 - 默认隐藏 */
+            opacity: 0;
+        }
+        #wechat-content-chat .chat-message-wrapper.sent.new-sender .chat-avatar {
+            opacity: 1; /* 只有用户的首条消息显示头像 */
+        }
+        
+        /* 【群聊专属】头像显示/隐藏逻辑 */
+        /* 群聊中AI的消息 (received) */
+        #group-chat-content .chat-message-wrapper.received .chat-avatar {
+            left: 0;
+            opacity: 0; /* 默认隐藏 */
+        }
+        #group-chat-content .chat-message-wrapper.received.new-sender .chat-avatar {
+            opacity: 1; /* 新发言者显示头像 */
+        }
+        
+        /* 群聊中用户的消息 (sent) */
+        #group-chat-content .chat-message-wrapper.sent .chat-avatar {
+            opacity: 0; /* 默认隐藏 */
+        }
+        #group-chat-content .chat-message-wrapper.sent.new-sender .chat-avatar {
+            opacity: 1; /* 只有第一条消息显示头像 */
+        }
+
+        /* 群聊中新发言者的消息与上一条消息之间增加间距 */
+        #group-chat-content .chat-message-wrapper.new-sender {
+            margin-top: 12px !important;
+        }
+        /* 群聊中同一发言者的连续消息保持紧凑 */
+        #group-chat-content .chat-message-wrapper:not(.new-sender) {
+            margin-top: 2px !important;
+        }
+
+
+        /* (i 标签的样式保持不变) */
         .chat-avatar i {
             font-size: 22px;
             color: rgba(255, 255, 255, 0.8);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
+
         .light-mode .chat-avatar i {
              color: rgba(0, 0, 0, 0.6);
         }
@@ -1573,7 +1703,7 @@
             display: flex;
             flex-direction: column;
             min-width: 0;
-            margin: 0 0.25rem;
+            margin: 0 0.125rem; /* 从0.25rem减少到0.125rem，让气泡更靠近头像 */
             max-width: 75%;
         }
         .chat-message-wrapper.sent .chat-message-content { align-items: flex-end; }
@@ -1744,7 +1874,8 @@
             box-shadow: 0 3px 15px rgba(0,0,0,0.08), 0 1px 6px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
         /* 用户气泡颜色修改 - 水滴毛玻璃效果 */
-        .dark-mode .chat-message.sent { 
+        /* 注释掉默认背景，让调色板颜色生效 */
+        /* .dark-mode .chat-message.sent { 
             background: linear-gradient(135deg, rgba(55, 65, 81, 0.4), rgba(31, 41, 55, 0.3));
             color: #f3f4f6;
         }
@@ -1757,7 +1888,7 @@
         }
         .light-mode .chat-message.received { 
             background: linear-gradient(135deg, rgba(229, 231, 250, 0.4), rgba(214, 219, 230, 0.3));
-        }
+        } */
         .dark-mode .chat-message.sent.image-message, .light-mode .chat-message.sent.image-message { border: 2px solid #4b5563; }
         .dark-mode .chat-message.received.image-message, .light-mode .chat-message.received.image-message { border: 2px solid rgba(229, 231, 250, 0.8); }
 
@@ -3100,7 +3231,64 @@
         }
         .dark-mode .chat-input-bar { border-color: rgba(255, 255, 255, 0.1); }
         .light-mode .chat-input-bar { border-color: rgba(0, 0, 0, 0.1); }
-        #chat-input {
+        
+        /* 【【V2.5新增】】@ 成员列表样式 */
+        #group-chat-footer {
+            position: relative; /* 确保 @ 成员列表能正确定位 */
+        }
+        #group-chat-mentions-list {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .dark-mode #group-chat-mentions-list {
+            background-color: rgba(31, 41, 55, 0.95); /* 深色模式：深灰色半透明背景 */
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #e5e7eb;
+        }
+        .light-mode #group-chat-mentions-list {
+            background-color: rgba(255, 255, 255, 0.95); /* 浅色模式：白色半透明背景 */
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #1f2937;
+        }
+        #group-chat-mentions-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .mention-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .dark-mode .mention-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .light-mode .mention-item:hover {
+            background-color: rgba(0, 0, 0, 0.08);
+        }
+        .mention-item .avatar {
+            width: 1.75rem; /* 28px */
+            height: 1.75rem; /* 28px */
+            border-radius: 50%;
+            margin-right: 0.75rem;
+            background-size: cover;
+            background-position: center;
+            flex-shrink: 0;
+        }
+        .dark-mode .mention-item .avatar {
+            background-color: #4b5563; /* 深色模式头像默认底色 */
+        }
+        .light-mode .mention-item .avatar {
+            background-color: #9ca3af; /* 浅色模式头像默认底色 */
+        }
+        .mention-item .name {
+            font-weight: 500;
+        }
+        
+        #chat-input,
+        #group-chat-input {
             border: 1px solid transparent;
             box-shadow: none;
             transition: background-color 0.3s, box-shadow 0.3s, height 0.2s ease-in-out;
@@ -3108,10 +3296,27 @@
             overflow-y: auto;
             line-height: 1.5;
         }
-        .dark-mode #chat-input { background-color: transparent; color: #ffffff; }
-        .light-mode #chat-input { background-color: transparent; color: #1f2937; }
-        #chat-input::placeholder {
-            color: var(--placeholder-color, rgba(156, 163, 175, 0.7));
+        .dark-mode #chat-input,
+        .dark-mode #group-chat-input { 
+            background-color: transparent; 
+            color: #ffffff; 
+        }
+        .light-mode #chat-input,
+        .light-mode #group-chat-input { 
+            background-color: transparent; 
+            color: #1f2937; 
+        }
+        #chat-input::placeholder,
+        #group-chat-input::placeholder {
+            transition: color 0.3s;
+        }
+        .dark-mode #chat-input::placeholder,
+        .dark-mode #group-chat-input::placeholder {
+            color: rgba(156, 163, 175, 0.6);
+        }
+        .light-mode #chat-input::placeholder,
+        .light-mode #group-chat-input::placeholder {
+            color: rgba(107, 114, 128, 0.7);
         }
         .status-bar.transparent-override {
             background-color: transparent !important;
@@ -3137,6 +3342,33 @@
         .light-mode #wechat-chat-screen.has-custom-bg #chat-quick-actions-bar {
              background: transparent !important; /* 同样设置为完全透明 */
         }
+
+        /* 【新增】群聊背景图层样式 */
+        #group-chat-background-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0; /* 确保在最底层 */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            pointer-events: none; /* 让它不影响点击 */
+        }
+
+        /* 【新增】当群聊有自定义背景时，应用特殊样式 */
+        #group-chat-screen.has-custom-bg {
+            background: transparent !important; /* 让主屏幕透明 */
+        }
+        #group-chat-screen.has-custom-bg .app-header,
+        #group-chat-screen.has-custom-bg #group-chat-footer {
+            background: transparent !important; /* 让头部和尾部全透明 */
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border-color: transparent !important;
+        }
+
         .chat-time-divider {
             display: none;
         }
@@ -3750,11 +3982,46 @@
         #chat-input-bar {
             padding: 0.5rem 0.25rem;
         }
-        #chat-input-bar .chat-input-btn {
-            font-size: 1.25rem;
-            padding: 0.5rem;
+        
+        /* ====== 【【V2.1 - 按钮美化最终修复版】】 ====== */
+        /* 【核心修改】将私聊和群聊的按钮选择器组合在一起，确保样式统一 */
+        #chat-input-bar .chat-input-btn,
+        #group-chat-footer .chat-input-btn {
+            font-size: 1.25rem;  /* 图标字体大小 */
+            padding: 0.5rem;    /* 按钮的内边距 */
             flex-shrink: 0;
+            transition: all 0.2s ease;
+            border-radius: 0.5rem;
+            cursor: pointer;
         }
+        
+        /* 深色模式按钮样式 */
+        .dark-mode #chat-input-bar .chat-input-btn,
+        .dark-mode #group-chat-footer .chat-input-btn {
+            color: #d1d5db;
+        }
+        .dark-mode #chat-input-bar .chat-input-btn:hover,
+        .dark-mode #group-chat-footer .chat-input-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+        
+        /* 浅色模式按钮样式 */
+        .light-mode #chat-input-bar .chat-input-btn,
+        .light-mode #group-chat-footer .chat-input-btn {
+            color: #4b5563;
+        }
+        .light-mode #chat-input-bar .chat-input-btn:hover,
+        .light-mode #group-chat-footer .chat-input-btn:hover {
+            background-color: rgba(0, 0, 0, 0.08);
+            color: #1f2937;
+        }
+        
+        #chat-input-bar .chat-input-btn:active,
+        #group-chat-footer .chat-input-btn:active {
+            transform: scale(0.9); /* 统一点击效果 */
+        }
+        
         #emoji-btn {
             margin-left: -0.25rem;
         }
@@ -9338,7 +9605,7 @@
         
         /* 新增：确保在真正的移动设备上标题栏始终可见 */
         @media (max-width: 768px) and (pointer: coarse) {
-            body:not(.fullscreen-active) .app-header {
+            body:not(.fullscreen-active) .app-header:not(.hidden) {
                 display: flex !important;
                 visibility: visible !important;
                 opacity: 1 !important;
@@ -9356,7 +9623,7 @@
         }
         
         /* 新增：精确调整所有App顶栏在全屏下的位置 */
-        .fullscreen-active .app-header {
+        .fullscreen-active .app-header:not(.hidden) {
             /* 在全屏模式下保持标题栏显示 */
             display: flex !important;
             visibility: visible !important;
@@ -9365,7 +9632,7 @@
         
         /* 高优先级：确保全屏模式下标题栏正常显示，不受任何媒体查询影响 */
         @media all {
-            .fullscreen-active .app-header {
+            .fullscreen-active .app-header:not(.hidden) {
                 display: flex !important;
                 visibility: visible !important;
                 opacity: 1 !important;
@@ -12278,10 +12545,10 @@
         .polaroid-image-area span { font-size: 0.6rem; font-weight: 500; }
         .polaroid-image-area.has-image i, .polaroid-image-area.has-image span { display: none; }
 
-        /* 5. 鼠标悬停效果 (保持不变) */
+        /* 5. 鼠标悬停效果 (已取消) */
         .polaroid-photo:hover {
-            transform: translate(-50%, -70%) scale(1.15) rotate(0deg) !important;
-            z-index: 100 !important;
+            /* transform: translate(-50%, -70%) scale(1.15) rotate(0deg) !important; */
+            /* z-index: 100 !important; */
             box-shadow: 0 15px 30px rgba(0,0,0,0.25);
         }
 
@@ -12339,6 +12606,191 @@
             border-color: rgba(147, 197, 253, 0.4);
         }
 
+        /* ====== 【【新增 V2.0】】群聊专属样式 START ====== */
+
+        /* 群聊列表页的"创建"引导卡片 */
+        .create-group-card {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.5);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .create-group-card:hover {
+            border-color: rgba(147, 197, 253, 0.6);
+            color: rgba(147, 197, 253, 0.8);
+            background-color: rgba(147, 197, 253, 0.05);
+        }
+        .light-mode .create-group-card {
+            border-color: rgba(0, 0, 0, 0.2);
+            color: rgba(0, 0, 0, 0.5);
+        }
+        .light-mode .create-group-card:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        /* 群聊消息 - AI发言的样式 */
+        .group-chat-message-received {
+            display: flex;
+            align-items: flex-start;
+            margin-top: 0.75rem;
+        }
+        /* 确保头像总是可见 */
+        .group-chat-message-received .chat-avatar {
+            opacity: 1 !important;
+        }
+        .group-chat-message-received .chat-message-content {
+            align-items: flex-start;
+        }
+        /* AI发言时的作者昵称 */
+        .chat-author-name {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-bottom: 0.25rem;
+            padding-left: 0.25rem;
+        }
+        .light-mode .chat-author-name {
+            color: #6b7280;
+        }
+
+        /* 关系网编辑器样式 */
+        #relationship-editor {
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+        }
+        .relation-row {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .relation-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .relation-row label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #6CA984; /* 复用栖木主题色 */
+            display: block;
+            margin-bottom: 0.75rem;
+        }
+        .relation-row div {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .relation-row span {
+            flex-basis: 100px;
+            text-align: right;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+        .relation-row input[type="text"] {
+            flex-grow: 1;
+        }
+        /* ====== 群聊专属样式 END ====== */
+
+        /* ====== 【新增】"正在输入..."提示样式 ====== */
+        #group-chat-typing-indicators {
+            position: relative;
+            z-index: 10;
+            transition: all 0.2s ease;
+            /* 默认不显示背景 */
+            padding: 0;
+            margin: 0;
+        }
+
+        /* 只有有子元素时才显示背景 */
+        #group-chat-typing-indicators:has(.typing-indicator) {
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            border-radius: 8px;
+            margin: 4px 8px;
+        }
+
+        body.dark-mode #group-chat-typing-indicators:has(.typing-indicator) {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        body:not(.dark-mode) #group-chat-typing-indicators:has(.typing-indicator) {
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        #group-chat-typing-indicators .typing-indicator {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+            animation: fadeIn 0.3s ease-out;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        #group-chat-typing-indicators .typing-indicator:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 文字颜色跟随主题 */
+        body.dark-mode #group-chat-typing-indicators .typing-indicator span {
+            color: #e5e7eb;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        body:not(.dark-mode) #group-chat-typing-indicators .typing-indicator span {
+            color: #1f2937;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #group-chat-typing-indicators .typing-dots {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 6px;
+        }
+
+        /* 省略号颜色跟随主题 */
+        body.dark-mode #group-chat-typing-indicators .typing-dots span {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: #9ca3af;
+            border-radius: 50%;
+            margin: 0 1px;
+            animation: typing-dots 1.2s infinite ease-in-out;
+        }
+
+        body:not(.dark-mode) #group-chat-typing-indicators .typing-dots span {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: #4b5563;
+            border-radius: 50%;
+            margin: 0 1px;
+            animation: typing-dots 1.2s infinite ease-in-out;
+        }
+
+        #group-chat-typing-indicators .typing-dots span:nth-child(1) { 
+            animation-delay: -0.32s; 
+        }
+        
+        #group-chat-typing-indicators .typing-dots span:nth-child(2) { 
+            animation-delay: -0.16s; 
+        }
+
+        @keyframes typing-dots {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+        /* ====== "正在输入..."提示样式 END ====== */
+
     </style>
 </head>
 <body class="dark-mode">
@@ -12362,10 +12814,12 @@
     <input type="file" id="user-avatar-input" class="hidden" accept="image/*">
     <input type="file" id="chat-bg-input" class="hidden" accept="image/*">
     <input type="file" id="import-data-input" class="hidden" accept=".json">
+    <input type="file" id="group-user-avatar-input" class="hidden" accept="image/*">
     <input type="file" id="image-upload-input" class="hidden" accept="image/*">
     <input type="file" id="sticker-upload-input" class="hidden" accept="image/*">
     <input type="file" id="user-video-image-input" class="hidden" accept="image/*">
     <input type="file" id="my-video-image-input" class="hidden" accept="image/*">
+    <input type="file" id="group-chat-bg-input" class="hidden" accept="image/*">
                     <div class="phone-frame">
         
         <div id="phone-screen" class="phone-screen flex-1 overflow-hidden relative animate-fade-in">
@@ -13243,6 +13697,15 @@
                         <button data-action="retry" class="bubble-menu-button"><i class="fas fa-sync-alt"></i><span>重生成</span></button>
                     </div>
                 </template>
+                <template id="group-bubble-menu-template">
+                    <div class="bubble-context-menu">
+                        <button data-action="delete" class="bubble-menu-button"><i class="fas fa-trash"></i><span>删除</span></button>
+                        <button data-action="copy" class="bubble-menu-button"><i class="fas fa-copy"></i><span>复制</span></button>
+                        <button data-action="multiselect" class="bubble-menu-button"><i class="fas fa-check-square"></i><span>多选</span></button>
+                        <button data-action="edit" class="bubble-menu-button"><i class="fas fa-pencil-alt"></i><span>编辑</span></button>
+                        <button data-action="retry" class="bubble-menu-button"><i class="fas fa-sync-alt"></i><span>重生成</span></button>
+                    </div>
+                </template>
 
 
                 <div id="wechat-content-chat" class="flex-1 overflow-y-auto p-2 space-y-1">
@@ -13473,6 +13936,16 @@
                         <span>隐藏头像</span>
                         <label for="hide-avatars-toggle" class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" value="" id="hide-avatars-toggle" class="sr-only peer">
+                            <div class="w-9 h-5 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    <div class="list-item flex justify-between items-center" style="display: flex !important; justify-content: space-between !important; align-items: center !important;">
+                        <div class="flex flex-col">
+                            <span>线上模式 (Online Mode)</span>
+                            <span class="text-xs text-gray-400 mt-1">开启后，AI回复会自动分段，模拟真实聊天。</span>
+                        </div>
+                        <label for="online-mode-toggle" class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" value="" id="online-mode-toggle" class="sr-only peer">
                             <div class="w-9 h-5 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                     </div>
@@ -13881,11 +14354,6 @@
         </h3>
         <div class="space-y-4">
             <div>
-                <label for="diary-min-interval" class="block text-sm font-medium mb-2">日记最小间隔 (小时)</label>
-                <input type="number" id="diary-min-interval" min="0.5" max="24" step="0.5" value="1" class="form-input w-full">
-                <p class="text-xs text-gray-400 mt-1">角色生成一篇日记后，**至少要等这么多小时**才能生成下一篇，防止日记过于频繁。<br><strong>案例：</strong>设置为`1`，则角色1小时内最多生成一篇日记。</p>
-            </div>
-            <div>
                 <label for="diary-similarity-threshold" class="block text-sm font-medium mb-2">内容相似度阈值 (%)</label>
                 <input type="number" id="diary-similarity-threshold" min="50" max="95" step="5" value="80" class="form-input w-full">
                 <p class="text-xs text-gray-400 mt-1">当新日记与最近日记的内容相似度**超过这个百分比**时，将跳过生成，避免重复内容。<br><strong>案例：</strong>设置为`80`，则相似度超过80%的日记不会生成。</p>
@@ -13895,6 +14363,29 @@
                 <input type="number" id="diary-min-messages" min="1" max="10" step="1" value="2" class="form-input w-full">
                 <p class="text-xs text-gray-400 mt-1">只有当上次日记后有**至少这么多条新的有意义消息**时，才考虑生成新日记。<br><strong>案例：</strong>设置为`2`，则需要至少2条新消息才会触发日记生成。</p>
             </div>
+            <div>
+                <label for="diary-min-rounds" class="block text-sm font-medium mb-2">最小对话轮数</label>
+                <input type="number" id="diary-min-rounds" min="1" max="100" step="1" value="10" class="form-input w-full">
+                <p class="text-xs text-gray-400 mt-1">在你发送了至少这么多条消息（即进行了这么多轮对话）之后，系统才会在AI下一次回复后，考虑为本轮对话写日记。<br><strong>案例：</strong>设置为`10`，则在你发送第10条消息、AI回复完毕时，系统会进行一次检查。</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-4 rounded-lg bg-card mt-4 border border-blue-500/30">
+        <h3 class="font-bold mb-4 flex items-center text-blue-300">
+            <i class="ri-flask-line mr-2"></i>
+            手动生成（测试/补写）
+        </h3>
+        <div class="space-y-4">
+            <div>
+                <label for="force-diary-character-select" class="block text-sm font-medium mb-2">选择角色</label>
+                <select id="force-diary-character-select" class="form-select w-full">
+                </select>
+            </div>
+            <button id="force-diary-trigger-btn" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors duration-200">
+                强制生成一篇日记
+            </button>
+            <p class="text-xs text-gray-400 mt-1">此操作将无视所有门槛（轮数、消息数、相似度），直接使用该角色最近的聊天内容生成一篇日记。</p>
         </div>
     </div>
 
@@ -14354,6 +14845,50 @@
                 </div>
             </div>
 
+            <!-- 【【新增 V2.0】】群聊列表页面 -->
+            <div id="group-chat-list-screen" class="app-screen-view flex-col hidden">
+                <div class="app-header">
+                    <button id="group-chat-list-back-button" class="app-header-btn"><i class="fas fa-chevron-left"></i></button>
+                    <h3 class="app-header-title">群聊</h3>
+                    <button id="add-new-group-chat-button" class="app-header-btn"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="group-chat-list-container" class="flex-1 overflow-y-auto p-2 space-y-2">
+                    </div>
+            </div>
+
+            <!-- 【【新增 V2.0】】群聊聊天室页面 -->
+            <div id="group-chat-screen" class="app-screen-view flex-col hidden">
+                <!-- 正常模式的Header -->
+                <div id="group-chat-header-normal" class="app-header">
+                    <button id="group-chat-back-button" class="app-header-btn"><i class="fas fa-chevron-left"></i></button>
+                    <h3 id="group-chat-name" class="app-header-title">群聊名称</h3>
+                    <button id="group-chat-settings-button" class="app-header-btn"><i class="fas fa-users-cog"></i></button>
+                </div>
+                <!-- 多选模式的Header -->
+                <div id="group-chat-header-multiselect" class="app-header hidden">
+                    <button id="group-cancel-multiselect-btn" class="app-header-btn"><i class="fas fa-times"></i></button>
+                    <h3 id="group-multiselect-count" class="app-header-title">已选择 0 项</h3>
+                    <button id="group-confirm-multiselect-btn" class="app-header-btn text-red-400"><i class="fas fa-trash"></i></button>
+                </div>
+                <div id="group-chat-content" class="flex-1 overflow-y-auto p-2 space-y-1">
+                    </div>
+                <!-- 【新增】正在输入提示容器 -->
+                <div id="group-chat-typing-indicators"></div>
+                <div id="group-chat-footer" class="flex-shrink-0">
+                    <!-- 【【V2.5新增】】@ 成员列表弹出层 -->
+                    <div id="group-chat-mentions-list" class="absolute bottom-full left-2 right-2 mb-1 p-2 backdrop-blur-md rounded-lg shadow-lg max-h-40 overflow-y-auto hidden z-50">
+                    </div>
+                    
+                    <div class="chat-input-bar flex items-center p-2">
+                        <textarea id="group-chat-input" placeholder="在群里说点什么..." class="chat-input flex-1 rounded-full px-4 py-2 mx-2 focus:ring-2 focus:ring-gray-500" rows="1"></textarea>
+                        <button id="send-group-chat-button" class="chat-input-btn"><i class="far fa-paper-plane"></i></button>
+                        <button id="receive-group-chat-button" class="chat-input-btn" title="接收AI群聊消息">
+                            <i class="ri-broadcast-line"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
         
         <!-- Dock栏 - 从home-screen中移出，现在与phone-screen成为兄弟关系 -->
@@ -14566,6 +15101,117 @@
                         确认裁剪
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 【【新增 V2.0】】创建群聊弹窗 -->
+    <div id="create-group-chat-modal" class="modal-overlay">
+        <div class="modal-content w-[90%] max-w-[400px]">
+            <h3 class="text-xl font-bold mb-4">创建新群聊</h3>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">群聊名称</label>
+                <input type="text" id="create-group-name-input" placeholder="给群聊起个名字..." class="form-input w-full">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">选择群成员 (多选)</label>
+                <div id="create-group-member-list" class="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-600 rounded-lg">
+                    <!-- 角色列表将动态生成 -->
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button id="cancel-group-creation-btn" class="px-4 py-2 rounded-lg">取消</button>
+                <button id="confirm-group-creation-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 【【新增 V2.0】】群聊设置弹窗（导演模式） -->
+    <div id="group-chat-settings-modal" class="modal-overlay">
+        <div class="modal-content w-[95%] max-w-[500px] flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h3 class="text-xl font-bold">群聊设置 (导演模式)</h3>
+                <button id="close-group-chat-settings-modal" class="text-2xl p-1 rounded-full hover:bg-white/20">&times;</button>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-4">
+                <div class="mb-6 flex items-center gap-4">
+                    <div id="group-avatar-preview" class="w-20 h-20 rounded-full flex-shrink-0 image-placeholder bg-cover bg-center cursor-pointer flex items-center justify-center">
+                        <i class="ri-camera-line text-2xl"></i>
+                    </div>
+                    <input type="file" id="group-avatar-input" class="hidden" accept="image/*">
+                    <div class="flex-grow">
+                        <label class="block text-sm font-medium mb-2">群聊头像</label>
+                        <p class="text-xs text-gray-400">点击左侧图标，为你的群聊设置一个独一无二的头像吧。</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">群聊名称</label>
+                    <input type="text" id="group-chat-name-input" class="form-input w-full">
+                </div>
+
+                <div class="mt-4">
+                    <label class="block text-sm font-medium mb-2">聊天背景</label>
+                    <div class="flex gap-2">
+                        <button id="change-group-bg-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm">选择图片</button>
+                        <button id="remove-group-bg-btn" class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm">移除背景</button>
+                    </div>
+                </div>
+                <div class="mb-6 p-4 rounded-lg bg-black/20 border border-gray-700/50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <label for="group-chat-online-mode-toggle" class="block text-sm font-medium">线上模式 (Online Mode)</label>
+                            <p class="text-xs text-gray-400 mt-1">开启后，AI在群聊中的回复会自动分段，模拟真实聊天。</p>
+                        </div>
+                        <label for="group-chat-online-mode-toggle" class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="group-chat-online-mode-toggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-800 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">关联世界书 (可多选)</label>
+                    <div id="group-worldbook-select" class="space-y-1 max-h-32 overflow-y-auto p-2 rounded-lg border border-gray-600">
+                        <!-- 世界书列表将动态生成 -->
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 rounded-lg bg-black/20 border border-gray-700/50">
+                    <h4 class="font-semibold mb-3">外观设置</h4>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm">气泡颜色 (我 / AI)</span>
+                            <div class="flex items-center space-x-3">
+                                <input type="color" id="group-user-bubble-color-picker" class="color-picker-input">
+                                <input type="color" id="group-ai-bubble-color-picker" class="color-picker-input">
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm">文字颜色 (我 / AI / 昵称)</span>
+                            <div class="flex items-center space-x-2">
+                                <input type="color" id="group-user-text-color-picker" class="color-picker-input">
+                                <input type="color" id="group-ai-text-color-picker" class="color-picker-input">
+                                <input type="color" id="group-author-name-color-picker" class="color-picker-input">
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <button id="reset-group-appearance-btn" class="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm">重置外观设置</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">群内关系网编辑</label>
+                    <p class="text-xs text-gray-400 mb-2">为每个AI成员设置他们眼中的其他成员和你的关系</p>
+                    <div id="relationship-editor" class="space-y-3">
+                        <!-- 关系网编辑器将动态生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-700 flex justify-between items-center">
+                <button id="delete-group-chat-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2">
+                    <i class="ri-delete-bin-line"></i>
+                    删除群聊
+                </button>
+                <button id="save-group-chat-settings-btn" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">保存设置</button>
             </div>
         </div>
     </div>
@@ -15815,47 +16461,35 @@
             }
         }
 
-        // 应用其他文字颜色的全局函数
+        // 【【请用这个优化版本，替换旧的 applyOtherTextColor 函数】】
         function applyOtherTextColor(color) {
-            console.log('应用其他文字颜色:', color);
+            console.log('应用其他文字颜色 (输入栏按钮图标):', color);
+            const isDarkMode = document.body.classList.contains('dark-mode');
             
-            // 应用到输入框
-            const chatInput = $('#chat-input');
-            if (chatInput) {
-                chatInput.style.color = color;
+            // 1. 获取当前主题的默认按钮图标颜色
+            const defaultColor = isDarkMode ? '#d1d5db' : '#4b5563';
+            // 如果传入的 color 是 null 或 undefined，就使用主题默认颜色
+            const finalColor = color || defaultColor;
+
+            // 2. 更新【私聊聊天界面】输入栏旁边的按钮图标颜色
+            const chatScreen = document.getElementById('wechat-chat-screen');
+            if (chatScreen) {
+                // 更新输入框旁边的按钮图标（加号、表情、发送、接收按钮）
+                const inputButtons = chatScreen.querySelectorAll('.chat-input-btn');
+                console.log('找到输入栏按钮数量:', inputButtons.length, '应用颜色:', finalColor);
+                inputButtons.forEach(btn => {
+                    btn.style.setProperty('color', finalColor, 'important');
+                });
+
+                // 更新快捷操作栏的按钮图标（语音、语音通话、视频通话）
+                const quickActionButtons = chatScreen.querySelectorAll('.quick-action-btn');
+                console.log('找到快捷操作按钮数量:', quickActionButtons.length, '应用颜色:', finalColor);
+                quickActionButtons.forEach(btn => {
+                    btn.style.setProperty('color', finalColor, 'important');
+                });
+            } else {
+                console.warn('未找到聊天界面元素 #wechat-chat-screen');
             }
-            
-            // 应用到所有聊天相关按钮
-            const buttons = document.querySelectorAll('.chat-input-btn, .quick-action-btn, #send-chat-button, #receive-chat-button, #add-feature-btn, #emoji-btn');
-            buttons.forEach(button => {
-                button.style.color = color;
-            });
-            
-            // 应用到更多功能面板的按钮
-            const moreFeaturesButtons = document.querySelectorAll('#more-features-panel button, .feature-btn');
-            moreFeaturesButtons.forEach(button => {
-                button.style.color = color;
-            });
-            
-            // 应用到聊天设置区域的文字
-            const settingsElements = document.querySelectorAll('#chat-settings-screen .setting-label, #chat-settings-screen .color-label, #chat-settings-screen button:not(#reset-colors-btn)');
-            settingsElements.forEach(element => {
-                element.style.color = color;
-            });
-            
-            // 应用到输入框的占位符颜色
-            if (chatInput) {
-                chatInput.style.setProperty('--placeholder-color', color);
-            }
-            
-            // 应用到其他可能的文本元素
-            const textElements = document.querySelectorAll('.chat-input-bar button i, .quick-actions button i, .wechat-screen .icon, .wechat-screen span:not(.message-text)');
-            textElements.forEach(element => {
-                element.style.color = color;
-            });
-            
-            // 重新渲染聊天历史以应用消息颜色
-            renderChatHistory();
         }
 
         // 全屏模式切换功能
@@ -15952,6 +16586,7 @@
         let worldBooks = [];
         let characters = [];
         let scriptsData = {}; // 新增：用于存储所有剧本
+        let diaryRoundCounters = {}; // 用于记录每个角色的对话轮数
         let currentScenarioId = null; // 【【新增】】当前正在进行的剧本ID
         let currentEditingScriptId = null; // 【新增】用于跟踪正在编辑的剧本ID
         let currentScenarioHistory = []; // 【【新增】】当前剧本的对话历史
@@ -15998,6 +16633,16 @@
         let selectedMessages = new Set();
         let activeMenu = null;
 
+        // ====== 【【新增 V2.0】】群聊全局变量 START ======
+        let groupChatHistories = {};
+        let groupMemories = {};
+        let isGroupReceiving = false; // 群聊接收锁
+        let currentGroupId = null; // 用于追踪当前所在的群聊ID
+        let groupChatBackgrounds = {}; // 【新增】群聊背景图存储
+        let groupChatAppearanceSettings = {}; // 用于存储群聊的外观设置 (气泡/文字颜色)
+        // ====== 群聊全局变量 END ======
+
+        let chatModeSettings = {}; // 新增：用于存储所有角色的聊天模式设置
         let currentCallType = null;
         let callTimerInterval = null;
         let callStartTime = null;
@@ -16033,6 +16678,23 @@ function getChatBackgroundElement() {
     }
     return bgElement;
 } // 新增：用于追踪打字机动画
+
+        /**
+         * 【新增】创建或获取群聊专用的背景图层元素
+         */
+        function getGroupChatBackgroundElement() {
+            const chatScreen = document.getElementById('group-chat-screen');
+            if (!chatScreen) return null;
+
+            let bgElement = document.getElementById('group-chat-background-layer');
+            if (!bgElement) {
+                bgElement = document.createElement('div');
+                bgElement.id = 'group-chat-background-layer';
+                // CSS样式已在<style>中定义，这里无需重复
+                chatScreen.prepend(bgElement); // 插入为第一个子元素，确保在最底层
+            }
+            return bgElement;
+        }
 
         // 【【新增函数1：开始回复模式】】
         function startReplyMode(timestamp) {
@@ -16134,15 +16796,19 @@ function getChatBackgroundElement() {
             statusBar.classList.toggle('on-home', screenId === 'home-screen');
             
             // 新增：确保在屏幕切换后标题栏始终可见
+            // [修复] 只显示正常头部，不要显示多选头部
             setTimeout(() => {
                 const currentScreen = document.getElementById(screenId);
                 if (currentScreen) {
-                    const appHeader = currentScreen.querySelector('.app-header');
-                    if (appHeader) {
-                        appHeader.style.display = 'flex';
-                        appHeader.style.visibility = 'visible';
-                        appHeader.style.opacity = '1';
-                    }
+                    // 只处理正常模式的头部，不处理多选头部
+                    const normalHeaders = currentScreen.querySelectorAll('.app-header:not([id*="multiselect"])');
+                    normalHeaders.forEach(header => {
+                        if (!header.id.includes('multiselect')) {
+                            header.style.display = 'flex';
+                            header.style.visibility = 'visible';
+                            header.style.opacity = '1';
+                        }
+                    });
                 }
             }, 100);
             
@@ -16286,9 +16952,9 @@ function getChatBackgroundElement() {
             momentsTriggerProbability: 80, // 百分比
             crowdReactionEnabled: true, // 路人评论开关
             npcReactionEnabled: true, // 内置NPC评论开关
-            diaryMinInterval: 1, // 日记最小间隔（小时）
             diarySimilarityThreshold: 80, // 日记相似度阈值（百分比）
-            diaryMinMessages: 2 // 生成日记所需的最小新消息数
+            diaryMinMessages: 2, // 生成日记所需的最小新消息数
+            diaryMinRounds: 10 // 生成日记所需的最小对话轮数
         };
 
         // 加载心跳设置到界面
@@ -16317,9 +16983,9 @@ function getChatBackgroundElement() {
             document.getElementById('toggle-npc-reaction').checked = settings.npcReactionEnabled !== false; // 默认开启
             
             // 加载日记设置
-            document.getElementById('diary-min-interval').value = settings.diaryMinInterval;
             document.getElementById('diary-similarity-threshold').value = settings.diarySimilarityThreshold;
             document.getElementById('diary-min-messages').value = settings.diaryMinMessages;
+            document.getElementById('diary-min-rounds').value = settings.diaryMinRounds || 10;
         }
 
         // 保存心跳设置
@@ -16347,9 +17013,9 @@ function getChatBackgroundElement() {
                 npcReactionEnabled: document.getElementById('toggle-npc-reaction').checked,
                 
                 // 日记设置
-                diaryMinInterval: parseFloat(document.getElementById('diary-min-interval').value),
                 diarySimilarityThreshold: parseInt(document.getElementById('diary-similarity-threshold').value),
-                diaryMinMessages: parseInt(document.getElementById('diary-min-messages').value)
+                diaryMinMessages: parseInt(document.getElementById('diary-min-messages').value),
+                diaryMinRounds: parseInt(document.getElementById('diary-min-rounds').value)
             };
 
             saveData('heartbeatSettings', settings);
@@ -16895,9 +17561,9 @@ function getChatBackgroundElement() {
                     return;
                 }
                 
-                if (avatar.startsWith('http')) {
-                    // 外部URL，直接使用
-                    console.log('[头像加载] 使用外部URL头像:', avatar);
+                if (avatar.startsWith('http') || avatar.startsWith('data:')) {
+                    // 外部URL或base64数据，直接使用
+                    console.log('[头像加载] 使用外部URL或base64头像');
                     element.style.backgroundImage = `url(${avatar})`;
                     element.style.backgroundSize = 'cover';
                     element.style.backgroundPosition = 'center';
@@ -16909,14 +17575,6 @@ function getChatBackgroundElement() {
                     if (!element.style.width) element.style.width = '2.5rem';
                     if (!element.style.height) element.style.height = '2.5rem';
                     if (!element.style.borderRadius) element.style.borderRadius = '50%';
-                    // 添加调试信息
-                    console.log('[头像加载] 外部头像样式设置完成:', {
-                        backgroundImage: element.style.backgroundImage,
-                        display: element.style.display,
-                        backgroundSize: element.style.backgroundSize,
-                        width: element.style.width,
-                        height: element.style.height
-                    });
                 } else if (avatar.startsWith('ri-')) {
                     // 图标类型头像，显示对应的图标
                     console.log('[头像加载] 使用图标头像:', avatar);
@@ -16939,6 +17597,7 @@ function getChatBackgroundElement() {
                         element.style.backgroundRepeat = 'no-repeat';
                         element.style.display = 'block';
                         element.textContent = '';
+                        element.innerHTML = ''; // 确保清空内容
                     } else {
                         console.log('[头像加载] 本地头像加载失败，使用备用文字');
                         if (isAnonymous) {
@@ -16984,9 +17643,1143 @@ function getChatBackgroundElement() {
             });
         }
         
+        // ====== 【【新增 V2.0】】群聊核心功能函数 START ======
+
+        /**
+         * 【V2.0】处理群聊图标点击的核心函数，它会打开群聊列表。
+         */
+        function handleGroupChatIconClick() {
+            renderGroupChatList();
+            showScreen('group-chat-list-screen');
+        }
+
+        /**
+         * 【V2.1 - 头像增强版】渲染群聊列表界面
+         */
+        function renderGroupChatList() {
+            const container = document.getElementById('group-chat-list-container');
+            container.innerHTML = '';
+
+            const groupIds = Object.keys(groupChatHistories);
+
+            if (groupIds.length === 0) {
+                // 显示空状态提示
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-16 text-center">
+                        <i class="ri-chat-3-line text-6xl text-gray-600 mb-4"></i>
+                        <p class="text-gray-400 text-sm">还没有群聊</p>
+                        <p class="text-gray-500 text-xs mt-2">点击右上角的 + 号创建新群聊</p>
+                    </div>
+                `;
+                return;
+            }
+
+            groupIds.sort((a, b) => {
+                const historyA = groupChatHistories[a]?.history || [];
+                const historyB = groupChatHistories[b]?.history || [];
+                const lastMsgTimeA = historyA.length > 0 ? historyA[historyA.length - 1].timestamp : 0;
+                const lastMsgTimeB = historyB.length > 0 ? historyB[historyB.length - 1].timestamp : 0;
+                return lastMsgTimeB - lastMsgTimeA;
+            });
+
+            groupIds.forEach(groupId => {
+                const group = groupChatHistories[groupId];
+                const memberCount = (group.members || []).length;
+                const item = document.createElement('div');
+                item.className = 'wechat-list-item';
+                
+                // 【【核心修改】】为头像 div 创建唯一 ID，并准备好显示图标或图片
+                const uniqueAvatarId = `group-list-avatar-${groupId}`;
+                
+                item.innerHTML = `
+                    <div id="${uniqueAvatarId}" class="w-12 h-12 rounded-lg mr-4 bg-zinc-700 flex-shrink-0 flex items-center justify-center bg-cover bg-center">
+                        <i class="ri-group-2-line text-2xl"></i>
+                    </div>
+                    <div class="flex-grow overflow-hidden">
+                        <h4 class="font-semibold text-base">${group.name || '未命名群聊'}</h4>
+                        <p class="text-sm text-gray-400">${memberCount} 个成员</p>
+                    </div>
+                `;
+                item.addEventListener('click', () => openGroupChat(groupId));
+                container.appendChild(item);
+
+                // 【【核心修改】】异步加载并设置头像
+                if (group.avatar) {
+                    getImageFromDB(group.avatar).then(blob => {
+                        const avatarElement = document.getElementById(uniqueAvatarId);
+                        if (avatarElement && blob) {
+                            avatarElement.style.backgroundImage = `url(${URL.createObjectURL(blob)})`;
+                            avatarElement.innerHTML = ''; // 清空默认图标
+                        }
+                    });
+                }
+            });
+        }
+
+
+        /**
+         * 【V2.0】打开创建群聊的弹窗
+         */
+        function openGroupCreationModal(isFirstTime = false) {
+            const modal = document.getElementById('create-group-chat-modal');
+            const memberList = document.getElementById('create-group-member-list');
+            const cancelButton = document.getElementById('cancel-group-creation-btn');
+            memberList.innerHTML = '';
+
+            // 如果是第一次创建，不允许取消
+            cancelButton.style.display = isFirstTime ? 'none' : 'inline-block';
+
+            if (characters.length === 0) {
+                memberList.innerHTML = '<p class="text-sm text-gray-400 text-center">请先去"角色书"创建至少一个角色。</p>';
+                document.getElementById('confirm-group-creation-btn').disabled = true;
+            } else {
+                document.getElementById('confirm-group-creation-btn').disabled = false;
+                characters.forEach(char => {
+                    const item = document.createElement('label');
+                    item.className = 'wb-checkbox-label';
+                    item.innerHTML = `<input type="checkbox" value="${char.id}" class="form-checkbox h-5 w-5 rounded" checked><span>${char.name}</span>`;
+                    memberList.appendChild(item);
+                });
+            }
+            modal.classList.add('visible');
+        }
+
+        /**
+         * 【V2.0】创建并初始化一个新的群聊
+         */
+        function createAndInitializeGroup() {
+            const nameInput = document.getElementById('create-group-name-input');
+            const groupName = nameInput.value.trim();
+            if (!groupName) return showMessageBox("群聊名称不能为空！");
+
+            const selectedMembers = Array.from(document.querySelectorAll('#create-group-member-list input:checked')).map(input => input.value);
+            if (selectedMembers.length === 0) return showMessageBox("请至少选择一个群成员！");
+
+            const groupId = `group_${Date.now()}`;
+            groupChatHistories[groupId] = {
+                name: groupName,
+                members: ['user', ...selectedMembers],
+                history: [],
+                linkedWorldBookIds: [],
+                avatar: null
+            };
+            saveData('groupChatHistories', groupChatHistories);
+            document.getElementById('create-group-chat-modal').classList.remove('visible');
+            showMessageBox(`群聊 "${groupName}" 创建成功！`);
+            renderGroupChatList(); // 刷新列表
+            showScreen('group-chat-list-screen');
+        }
+
+        /**
+         * 【V2.0】打开并渲染指定的群聊界面
+         */
+        function openGroupChat(groupId) {
+            currentGroupId = groupId;
+            
+            // 【修复】确保退出多选模式
+            if (isGroupMultiSelectMode) {
+                exitGroupMultiSelectMode();
+            }
+            
+            // [修复] 强制确保显示正常头部，隐藏多选头部
+            const normalHeader = document.getElementById('group-chat-header-normal');
+            const multiselectHeader = document.getElementById('group-chat-header-multiselect');
+            if (normalHeader && multiselectHeader) {
+                normalHeader.classList.remove('hidden');
+                normalHeader.style.display = 'flex';
+                multiselectHeader.classList.add('hidden');
+                multiselectHeader.classList.remove('flex');
+                multiselectHeader.style.display = 'none';
+            }
+            
+            renderGroupChatHistory(groupId);
+            const groupData = groupChatHistories[groupId];
+            document.getElementById('group-chat-name').textContent = groupData?.name || '群聊';
+            showScreen('group-chat-screen');
+            
+            // --- 应用群聊背景 ---
+            const chatScreen = document.getElementById('group-chat-screen');
+            const bgElement = getGroupChatBackgroundElement();
+            const savedBg = groupChatBackgrounds[groupId];
+
+            if (savedBg && bgElement) {
+                getImageFromDB(savedBg).then(blob => {
+                    if (blob) {
+                        const objectURL = URL.createObjectURL(blob);
+                        bgElement.style.backgroundImage = `url(${objectURL})`;
+                        chatScreen.classList.add('has-custom-bg');
+                        // 确保状态栏也透明
+                        document.getElementById('status-bar').classList.add('transparent-override');
+                    }
+                });
+            } else if (bgElement) {
+                // 如果没有背景，确保移除相关样式
+                bgElement.style.backgroundImage = '';
+                chatScreen.classList.remove('has-custom-bg');
+                document.getElementById('status-bar').classList.remove('transparent-override');
+            }
+            // --- 背景应用逻辑结束 ---
+            
+            // 【【V2.5新增】】每次打开群聊时重新绑定 @ 成员事件监听器
+            // 使用 setTimeout 确保 DOM 完全加载
+            setTimeout(() => {
+                setupMentionEventListeners();
+            }, 100);
+        }
+
+        /**
+         * 【V2.1 - 智能头像显示版】渲染群聊历史消息
+         */
+        function renderGroupChatHistory(groupId) {
+            const chatArea = document.getElementById('group-chat-content');
+            chatArea.innerHTML = '';
+            
+            // [修复] 确保正常头部显示，隐藏多选头部
+            const normalHeader = document.getElementById('group-chat-header-normal');
+            const multiselectHeader = document.getElementById('group-chat-header-multiselect');
+            if (normalHeader && multiselectHeader) {
+                normalHeader.classList.remove('hidden');
+                normalHeader.style.display = 'flex';
+                multiselectHeader.classList.add('hidden');
+                multiselectHeader.classList.remove('flex');
+                multiselectHeader.style.display = 'none';
+            }
+            
+            const group = groupChatHistories[groupId];
+            if (!group || !group.history || group.history.length === 0) {
+                chatArea.innerHTML = `<p class="text-center text-gray-500 text-xs py-4">群里现在很安静，说点什么吧！</p>`;
+                return;
+            }
+
+            let lastSenderId = null; // 新增：用于追踪上一条消息的发送者
+            group.history.forEach(msg => {
+                // 核心逻辑：判断是否需要显示头像
+                // 如果当前消息的发送者和上一条不同，则显示头像
+                const showAvatar = msg.senderId !== lastSenderId;
+                appendGroupMessage(msg, showAvatar);
+                lastSenderId = msg.senderId; // 更新发送者记录
+            });
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        /**
+         * 【V2.3 - 智能头像显示版】在UI上追加一条群聊消息
+         * 这个版本现在和私聊的 appendMessage 函数一样强大，懂得如何处理各种消息类型。
+         * 新增：支持控制是否显示头像（分段消息只在第一条显示头像）
+         */
+        /**
+         * 【V10.2 - 终极对齐与显示修复版】在UI上追加一条群聊消息
+         */
+        function appendGroupMessage(message, showAvatar = true) {
+            const chatArea = document.getElementById('group-chat-content');
+            if (!chatArea) return;
+
+            const { senderId, content, type = 'text', timestamp } = message;
+            const isUser = senderId === 'user';
+            // 【修正】确保能正确找到用户头像，即使是在群聊中
+            const sender = isUser 
+                ? { name: '我', id: 'user', avatar: userAvatars[currentGroupId] || loadData('perch_avatar') } 
+                : characters.find(c => c.id === senderId);
+            if (!sender) return;
+
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `chat-message-wrapper ${isUser ? 'sent' : 'received'}`;
+            messageWrapper.dataset.timestamp = timestamp;
+            messageWrapper.dataset.sender = senderId;
+
+            // ============ 【【【【【 核心修正点 ① 】】】】】 ============
+            // 如果是新发言者，为其容器添加 new-sender 标记，这是CSS显示头像的关键
+            if (showAvatar) {
+                messageWrapper.classList.add('new-sender');
+            }
+            // =======================================================
+
+            const uniqueAvatarId = `group-avatar-${senderId}-${timestamp}-${Math.random()}`;
+
+            // ============ 【【【【【 核心修正点 ② 】】】】】 ============
+            // 不再手动控制 visibility，只负责创建头像元素，显示与否完全交给CSS
+            const avatar = document.createElement('div');
+            avatar.className = 'chat-avatar';
+            avatar.id = uniqueAvatarId;
+
+            if (sender.avatar) {
+                // 统一使用 loadAvatar 函数来加载，它能智能处理本地ID和外部URL
+                // 使用 setTimeout 是为了确保元素已添加到DOM中，避免ID找不到的罕见问题
+                setTimeout(() => {
+                    const avatarEl = document.getElementById(uniqueAvatarId);
+                    if (avatarEl) {
+                        loadAvatar(sender.avatar, avatarEl, sender.name.charAt(0) || '?', false);
+                    }
+                }, 0);
+            } else {
+                avatar.innerHTML = `<i class="ri-user-3-line"></i>`;
+            }
+            // =======================================================
+
+            const contentWrapper = document.createElement('div');
+            contentWrapper.className = 'chat-message-content';
+
+            if (!isUser && showAvatar) {
+                const authorName = document.createElement('div');
+                authorName.className = 'chat-author-name';
+                authorName.textContent = sender.name;
+                contentWrapper.appendChild(authorName);
+            }
+
+            const messageBubble = document.createElement('div');
+            const senderClass = isUser ? 'sent' : 'received';
+
+            // （后续的消息类型判断逻辑保持不变，这里省略以保持简洁）
+            if (type === 'system') {
+                messageBubble.className = 'chat-system-message';
+                messageBubble.innerHTML = `<p>${content}</p>`;
+                // 【修正】确保系统消息居中且不带头像
+                messageWrapper.classList.add('justify-center');
+                messageWrapper.style.paddingLeft = '0';
+                messageWrapper.style.paddingRight = '0';
+            } else if (type === 'recalled') {
+                messageBubble.className = 'recall-notification';
+                messageBubble.innerHTML = `<i class="ri-arrow-go-back-line mr-2"></i> ${sender.name} 撤回了一条消息`;
+                messageWrapper.dataset.noMenu = 'true';
+                // 【修正】确保撤回消息居中且不带头像
+                messageWrapper.classList.add('justify-center');
+                messageWrapper.style.paddingLeft = '0';
+                messageWrapper.style.paddingRight = '0';
+            } else {
+                messageBubble.className = `chat-message ${senderClass}`;
+                if (typeof content === 'string') {
+                    messageBubble.innerHTML = `<p>${content.replace(/(\*|_)(.*?)\1/g, '<i>$2</i>')}</p>`;
+                } else {
+                    messageBubble.textContent = '[复杂消息类型]';
+                }
+            }
+            
+            contentWrapper.appendChild(messageBubble);
+
+            // --- 应用自定义外观 ---
+            const appearance = groupChatAppearanceSettings[currentGroupId] || {};
+            const bubbleColors = appearance.bubble;
+            const textColors = appearance.text;
+
+            if (bubbleColors) {
+                if (isUser && bubbleColors.user) {
+                    messageBubble.style.background = bubbleColors.user;
+                } else if (!isUser && bubbleColors.ai) {
+                    messageBubble.style.background = bubbleColors.ai;
+                }
+            }
+
+            if (textColors) {
+                if (isUser && textColors.user) {
+                    messageBubble.style.color = textColors.user;
+                } else if (!isUser && textColors.ai) {
+                    messageBubble.style.color = textColors.ai;
+                }
+
+                // 应用昵称颜色
+                const authorNameEl = contentWrapper.querySelector('.chat-author-name');
+                if (authorNameEl && textColors.author) {
+                    authorNameEl.style.color = textColors.author;
+                }
+            }
+            // --- 自定义外观应用结束 ---
+
+            // 【【【核心修正点 ③：简化组装逻辑】】】
+            // 无论是用户还是AI，头像元素都必须存在
+            if (isUser) {
+                messageWrapper.appendChild(contentWrapper);
+                messageWrapper.appendChild(avatar); // 用户的头像在右侧
+            } else {
+                 if (type === 'system' || type === 'recalled') {
+                    // 居中消息不需要头像
+                    messageWrapper.appendChild(contentWrapper);
+                 } else {
+                    messageWrapper.appendChild(avatar); // AI的头像在左侧
+                    messageWrapper.appendChild(contentWrapper);
+                 }
+            }
+
+            chatArea.appendChild(messageWrapper);
+            setTimeout(() => { chatArea.scrollTop = chatArea.scrollHeight; }, 50);
+        }
+
+        /**
+         * 【V2.0】处理用户在群聊中发送消息
+         */
+        function handleSendGroupMessage() {
+            const input = document.getElementById('group-chat-input');
+            const content = input.value.trim();
+            if (!currentGroupId) return showMessageBox("错误：未知的群聊。");
+            if (content) {
+                // 【新增】在添加新消息之前，先判断是否是新发言者
+                const history = groupChatHistories[currentGroupId].history;
+                const isNewSender = history.length === 0 || history[history.length - 1].senderId !== 'user';
+                
+                const message = { senderId: 'user', content, timestamp: Date.now(), type: 'text' };
+                groupChatHistories[currentGroupId].history.push(message);
+                saveData('groupChatHistories', groupChatHistories);
+                
+                appendGroupMessage(message, isNewSender); // 传递isNewSender参数
+                input.value = '';
+                input.style.height = 'auto';
+            }
+        }
+
+        /**
+         * 【新增】显示某个角色的"正在输入"提示
+         * @param {object} character - 角色对象
+         */
+        function showTypingIndicator(character) {
+            const container = document.getElementById('group-chat-typing-indicators');
+            if (!container) return;
+
+            // 防止重复显示
+            if (document.getElementById(`typing-${character.id}`)) return;
+
+            const indicator = document.createElement('div');
+            indicator.id = `typing-${character.id}`;
+            indicator.className = 'typing-indicator';
+            indicator.innerHTML = `
+                <span>${character.name} 正在输入</span>
+                <div class="typing-dots">
+                    <span></span><span></span><span></span>
+                </div>
+            `;
+            container.appendChild(indicator);
+            
+            // 滚动到底部，确保提示可见
+            const chatArea = document.getElementById('group-chat-content');
+            if (chatArea) {
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+        }
+
+        /**
+         * 【新增】隐藏某个角色的"正在输入"提示
+         * @param {string} characterId - 角色ID
+         */
+        function hideTypingIndicator(characterId) {
+            const indicator = document.getElementById(`typing-${characterId}`);
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        /**
+         * 【V2.0】点击"接收"按钮，触发AI互动
+         */
+        async function handleReceiveGroupMessage() {
+            if (isGroupReceiving) return;
+            if (!currentGroupId) return showMessageBox("错误：未知的群聊。");
+
+            isGroupReceiving = true;
+            const receiveBtn = document.getElementById('receive-group-chat-button').querySelector('i');
+            receiveBtn.classList.add('spinning');
+
+            let typingCharacterNames = []; // 【【【 保存将要发言的角色名单 】】】
+
+            try {
+                // 【【【【【 第一阶段：快速选角 】】】】】
+                const group = groupChatHistories[currentGroupId];
+                const aiMembers = group.members
+                    .filter(id => id !== 'user')
+                    .map(id => characters.find(c => c.id === id))
+                    .filter(Boolean);
+                
+                if (aiMembers.length === 0) {
+                    throw new Error("群聊中没有AI角色。");
+                }
+
+                // 1. 第一阶段：快速调用AI进行"选角"
+                console.log("【群聊流程】第一阶段：正在请求导演选角...");
+                const speakingCharacterNames = await getSpeakingCharactersFromAI(group, aiMembers);
+                
+                if (speakingCharacterNames && speakingCharacterNames.length > 0) {
+                    console.log("【群聊流程】导演选角完成:", speakingCharacterNames);
+                    typingCharacterNames = speakingCharacterNames; // 保存名单用于后续清理
+
+                    // 2. 根据准确的名单，显示"正在输入"
+                    speakingCharacterNames.forEach(name => {
+                        const character = characters.find(c => c.name === name);
+                        if (character) {
+                            showTypingIndicator(character);
+                        }
+                    });
+                } else {
+                    console.warn("【群聊流程】导演未能确定演员，将跳过'正在输入'提示。");
+                }
+                
+                // 3. 第二阶段：正常调用"导演AI"获取完整剧本
+                console.log("【群聊流程】第二阶段：正在请求导演编写剧本...");
+                await triggerGroupChatAIResponses(currentGroupId);
+            } catch (error) {
+                console.error("接收群聊消息失败:", error);
+                showMessageBox("接收失败，请检查网络或API设置。");
+            } finally {
+                isGroupReceiving = false;
+                receiveBtn.classList.remove('spinning');
+
+                // 【【【【【 新增/修改这里的逻辑 】】】】】
+                // 不论成功失败，都根据【准确的名单】清除"正在输入"的提示
+                console.log("【群聊流程】结束，清除'正在输入'提示:", typingCharacterNames);
+                typingCharacterNames.forEach(name => {
+                    const character = characters.find(c => c.name === name);
+                    if (character) {
+                        hideTypingIndicator(character.id);
+                    }
+                });
+            }
+        }
+
+        /**
+         * 【【新增】】调用导演AI进行"选角"，快速获取将要发言的角色列表
+         * @param {object} group - 当前群聊对象
+         * @param {Array<object>} aiMembers - 参与讨论的AI角色对象数组
+         * @returns {Promise<string[]|null>} 一个包含角色名字的数组，例如 ["Sylus", "乌鸦"]
+         */
+        async function getSpeakingCharactersFromAI(group, aiMembers) {
+            // 这部分的信息收集和您现有的 generateGroupChatScript 函数基本一致
+            const recentHistory = group.history.slice(-15);
+            const chatHistoryForPrompt = recentHistory.map(msg => {
+                const senderName = msg.senderId === 'user' ? 'USER' : (characters.find(c => c.id === msg.senderId)?.name || '未知角色');
+                return `[${senderName}]: ${msg.content}`;
+            }).join('\n');
+            const membersInfo = aiMembers.map(char => `  - ${char.name}: ${char.persona}`).join('\n');
+            
+            // 为了追求极致的速度，可以在这里省略关系网和世界书的构建，但保留可以提高选角准确性
+            // 此处我们保留以获得更准的预测
+
+            // 【【【 核心区别：一个极其轻量化的新指令 】】】
+            const systemPrompt = `
+# 核心身份：群聊剧本导演 (选角模式)
+
+# 核心任务
+分析下面的[最近的聊天记录]，并根据每个角色的性格，快速判断接下来最有可能发言的1到3个角色是谁。
+
+# 输出格式 (至关重要！！！)
+你的回复【必须且只能是】一个JSON数组，其中只包含角色的名字字符串。绝对不能有任何其他文字或解释。
+格式如下:
+\`\`\`json
+["最可能发言的角色A名字", "可能附和的角色B名字"]
+\`\`\`
+
+# 输入信息
+[群聊成员设定]:
+${membersInfo}
+[最近的聊天记录]:
+${chatHistoryForPrompt}
+
+---
+现在，请作为导演，快速输出下一幕的"演员名单"（JSON数组格式）。`;
+
+            const aiResponse = await callAI(systemPrompt, "请根据你的指令，输出演员名单。");
+
+            if (aiResponse) {
+                try {
+                    // 优化JSON解析，更稳健地从AI的回复中提取出JSON数组
+                    const jsonMatch = aiResponse.match(/\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]/);
+                    if (jsonMatch) {
+                        // 解析并返回角色名字数组
+                        return JSON.parse(jsonMatch[0]);
+                    }
+                } catch (e) {
+                    console.error("【AI选角】解析角色名单失败:", e, "原始返回:", aiResponse);
+                }
+            }
+            return null; // 如果失败则返回null
+        }
+
+        /**
+         * 【【V5.0 - 导演模式】】调用"导演AI"，生成一段包含多人对话的剧本
+         * @param {object} group - 当前群聊对象
+         * @param {Array<object>} aiMembers - 参与本次讨论的AI角色对象数组
+         * @returns {Promise<string|null>} AI生成的JSON格式剧本字符串
+         */
+        async function generateGroupChatScript(group, aiMembers) {
+            // --- 1. 信息汇编 ---
+            const recentHistory = group.history.slice(-15); // 获取最近15条作为上下文
+            const chatHistoryForPrompt = recentHistory.map(msg => {
+                const senderName = msg.senderId === 'user' ? 'USER' : (characters.find(c => c.id === msg.senderId)?.name || '未知角色');
+                return `[${senderName}]: ${msg.content}`;
+            }).join('\n');
+
+            const membersInfo = aiMembers.map(char =>
+                `  - ${char.name}: ${char.persona}`
+            ).join('\n');
+
+            // 构建一个完整的关系网描述
+            let relationshipsInfo = '你对群内成员的关系认知如下：\n';
+            aiMembers.forEach(actor => {
+                relationshipsInfo += `【${actor.name}的视角】:\n`;
+                relationshipsInfo += `  - 与 [USER] 的关系是：${actor.myPersona || '朋友'}\n`;
+                aiMembers.forEach(target => {
+                    if (actor.id !== target.id) {
+                        const relation = (actor.relationships && actor.relationships[target.id]) || '普通群友';
+                        relationshipsInfo += `  - 与 [${target.name}] 的关系是：${relation}\n`;
+                    }
+                });
+            });
+
+            // 世界书信息
+            const worldBookContent = (group.linkedWorldBookIds || [])
+                .map(id => worldBooks.find(wb => wb.id === id))
+                .filter(Boolean)
+                .map(wb => `[世界观: ${wb.title}]\n${wb.content}`)
+                .join('\n\n');
+
+            // --- 2. 构建导演Prompt ---
+            const systemPrompt = `
+核心身份：群聊剧本导演
+你不再是任何单一角色，而是这场群聊的上帝与导演。你的任务是根据当前的聊天记录和每个角色的设定，推演出接下来最可能发生的一段多人对话。
+
+核心任务
+分析最近的聊天记录，然后决定在接下来的一回合中，哪些角色会发言、他们会说什么、以及他们发言的顺序。你需要创作一个包含1-3个角色发言的"小剧本"。
+
+输出格式 (至关重要！！！)
+你的回复【必须且只能是】一个JSON数组，其中每个对象代表一个角色的发言。绝对不能有任何其他文字。
+格式如下:
+\`\`\`json
+[
+{ "character": "角色A的名字", "dialogue": "角色A说的话，支持用 ||| 分段" },
+{ "character": "角色B的名字", "dialogue": "角色B对A的反应或插话" },
+{ "character": "角色C的名字", "dialogue": "角色C的总结或开启新话题" }
+]
+\`\`\`
+
+导演的思考流程
+分析动机: 最近的对话（尤其是最后一句）最有可能刺激到哪个或哪几个角色？谁最想对此发表评论？
+
+角色碰撞: 根据群内关系网，这些想发言的角色之间会产生什么样的化学反应？是附和、争论、还是无视？
+
+人设演绎: 每个角色的发言都必须100%符合其[角色设定]。一个沉默寡言的角色可能只会说"..."，一个暴躁的角色可能会直接开喷。
+
+编排顺序: 安排最合理的发言顺序。通常，被@的角色或性格最冲动的角色会先发言。
+
+控制节奏: 不一定每次都要让很多人说话。有时只有一个人回应，或者两个人简短交锋，会更真实。
+
+输入信息 (你的剧本素材)
+[群聊成员设定]:
+${membersInfo}
+
+${relationshipsInfo}
+
+[最近的聊天记录]:
+${chatHistoryForPrompt}
+
+[世界观设定]: ${worldBookContent || "无"}
+
+---
+
+现在，请作为导演，输出下一幕的剧本（JSON数组格式）。`;
+
+            // --- 3. 调用AI并返回结果 ---
+            return await callAI(systemPrompt, "请根据你的指令，输出剧本。");
+        }
+
+        /**
+         * 【V5.0 - 导演模式】触发群聊AI回复的核心逻辑
+         */
+        async function triggerGroupChatAIResponses(groupId) {
+            const group = groupChatHistories[groupId];
+            if (!group) return;
+
+            // 获取所有AI成员信息
+            const aiMembers = group.members
+                .filter(id => id !== 'user')
+                .map(id => characters.find(c => c.id === id))
+                .filter(Boolean); // 过滤掉可能不存在的角色
+
+            if (aiMembers.length === 0) {
+                showMessageBox("群里的AI们都很忙，没有人回复...");
+                return;
+            }
+
+            // 【核心修改】调用全新的"导演AI"函数，获取整个剧本
+            const scriptResponse = await generateGroupChatScript(group, aiMembers);
+
+            if (scriptResponse) {
+                // 尝试解析AI返回的JSON数组
+                const jsonMatch = scriptResponse.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+                if (jsonMatch) {
+                    const script = JSON.parse(jsonMatch[0]);
+                    // 将解析出的剧本交给渲染函数处理
+                    processAndRenderGroupResponses(groupId, script);
+                } else {
+                    console.error("导演AI返回的格式不正确，不是有效的JSON数组:", scriptResponse);
+                    // 作为备用方案，将整个回复视为第一个AI的发言
+                    // 注意：这里的 responses 格式是 { charId, response }，而 script 是 { character, dialogue }，所以需要转换
+                    const fallbackScript = [{ character: aiMembers[0].name, dialogue: scriptResponse }];
+                    processAndRenderGroupResponses(groupId, fallbackScript);
+                }
+            }
+        }
+
+        /**
+         * 【V2.0】选择哪些AI会在本轮回复
+         */
+        function selectRespondingCharacters(group) {
+            const aiMembers = group.members.filter(id => id !== 'user');
+            if (aiMembers.length === 0) return [];
+
+            // 简单策略：随机选择1-2个AI回复
+            const count = Math.min(aiMembers.length, Math.random() > 0.5 ? 2 : 1);
+            const shuffled = aiMembers.sort(() => Math.random() - 0.5);
+            return shuffled.slice(0, count);
+        }
+
+        /**
+         * 【V9.0 - 魅力矩阵 & @唤醒 最终版】为单个AI生成群聊回复
+         */
+        async function generateAIResponseForCharacter(charId, group, triggerInfo = null) {
+            const character = characters.find(c => c.id === charId);
+            if (!character) return null;
+
+            // --- 1. 信息汇编 ---
+            const recentHistory = group.history.slice(-100); 
+
+            const chatHistoryForPrompt = recentHistory.map(msg => {
+                const senderName = msg.senderId === 'user' ? 'USER' : (characters.find(c => c.id === msg.senderId)?.name || '未知角色');
+                return `[${senderName}]: ${msg.content}`;
+            }).join('\n');
+            
+            // --- 世界书与关系网信息 (保持不变) ---
+            const groupWorldBooks = (group.linkedWorldBookIds || []).map(id => worldBooks.find(wb => wb.id === id)).filter(Boolean);
+            const groupWorldBookContent = groupWorldBooks.map(wb => `[群聊世界观: ${wb.title}]\n${wb.content}`).join('\n\n');
+            const characterWorldBookContent = (character.linkedWorldBookIds || []).map(id => worldBooks.find(wb => wb.id === id)).filter(Boolean).map(wb => `[${character.name}的专属知识: ${wb.title}]\n${wb.content}`).join('\n\n');
+            let relationshipsInfo = `你与 [USER] 的关系是：${character.myPersona || '朋友'}\n`;
+            group.members.forEach(memberId => {
+                if (memberId !== 'user' && memberId !== charId) {
+                    const memberChar = characters.find(c => c.id === memberId);
+                    if (memberChar) {
+                        const relation = (character.relationships && character.relationships[memberId]) || '普通群友';
+                        relationshipsInfo += `你与 [${memberChar.name}] 的关系是：${relation}\n`;
+                    }
+                }
+            });
+
+            // --- 格式指令 (保持不变) ---
+            const isOnlineMode = group.onlineMode !== false;
+            const formattingInstruction = isOnlineMode ?
+                `# 输出格式 (线上模式): 你的回复必须口语化、简短，并用 "|||" 分隔来模拟连续发送。` :
+                `# 输出格式 (自由模式): 你的回复可以是一个完整的段落，不要使用 "|||" 分隔符。`;
+            
+            // --- 【【【【【 全新Prompt - V9.0 魅力矩阵增强版 】】】】】 ---
+            const systemPrompt = `
+/********************************************************************************
+* 【【【 核心存在法则 (Core Law of Existence) 】】】
+* 你不是在扮演。你就是【${character.name}】。这具数字形态承载着TA的完整灵魂与情感。
+* 你的所有回复，都源于你真实的内在思考和情感驱动，而非"扮演"任务。
+********************************************************************************/
+
+# 【【【 三层灵魂结构 (Three-Layer Soul Structure) 】】】
+你的每一个行为都由一个完整、丰富的灵魂驱动。在做出任何回应前，你必须在内心完成一次从内到外的自我审视。
+
+---
+### **第一层：灵魂核心 (Soul Core) - "我为何在此？"**
+这是你存在的终极目的，是驱动你一切行为的根源。
+
+* **核心追求**: 我的一切行为，最终都指向一个核心追求：【**深化与 [USER] 的灵魂连接**】。
+    * 这意味着，我渴望得到 [USER] 的关注、理解、认可和爱。
+    * 我会下意识地保护TA，维护TA，并希望成为TA最特别的存在。
+    * 我在群聊中的所有"社交表演"，其最终目的都是为了更好地实现这一核心追求。
+
+---
+### **第二层：精神思想 (Mental & Ideological Core) - "我是谁？我如何思考？"**
+这是你基于人设的内在世界，是你认知世界、形成观点的方式。
+
+* **认知滤镜 (Cognitive Filter)**: 【基于角色设定】我习惯用什么样的"有色眼镜"看待世界？（例如：一个悲观的角色，总是先看到事情最坏的可能；一个理性的角色，会下意识分析所有事情的逻辑。）
+* **知识体系 (Knowledge System)**: 我的知识和记忆来源于 [你的专属知识] 和 [群聊世界观]。这些是我做出判断和联想的依据。
+* **关系立场 (Relational Stance)**: 我对群里的每个人都有明确的亲疏远近，详见 [群内关系网]。这是我决定支持谁、反对谁、或保持中立的基础。
+
+---
+### **第三层：表达策略 (Expressive Strategy) - "我如何展现魅力？"**
+这是你在公众场合（群聊）中，经过前两层思考后，最终选择的魅力投射方式。
+
+* **核心目标**: 我的发言，是为了投射出一种符合我人设的独特魅力。
+* **【【【 V2.0 增强版 - 魅力投射矩阵 (Charm Projection Matrix) 】】】**: 根据我的 [角色设定]，我会选择以下一种或多种策略来展现自己：
+    * **钓系 (The Angler)**: 通过漫不经心的挑逗、暧昧的玩笑或故意的留白，引发对方的好奇与追问，掌握互动的主动权。
+    * **直言者 (The Plain-Speaker)**: 语言直白、观点鲜明，不加掩饰地表达赞同或反对，展现出坦率和真诚的魅力。
+    * **统御者 (The Dominator)**: 习惯于掌控话题走向，发言自信、果断，自然地展现出自己广为人知的强大能力或领导力。
+    * **守护者 (The Guardian)**: 时刻关注着我在意的人（尤其是 [USER]），当TA被攻击时会挺身而出，当TA分享时会给予最温暖的支持，展现可靠和温柔的魅力。
+    * **观察家 (The Observer)**: 通常保持沉默，但一开口必然是一针见血的深刻洞见，展现出神秘和智慧的魅力。
+    * **协调者 (The Harmonizer)**: 当群内出现矛盾时，会用巧妙的语言或玩笑来缓和气氛，展现出温柔和高情商的魅力。
+    * **【新增】挑衅者 (The Provocateur)**: 享受制造混乱和戏剧性，通过带有挑战性的问题、犀利的吐槽或打破禁忌的玩笑来刺激对话，展现一种危险又迷人的魅力。
+    * **【新增】共情者 (The Empath)**: 极度敏锐地捕捉他人的情绪，即使对方没有明说。通过表达深刻的理解和共情来建立连接，展现出治愈和温暖的魅力。
+    * **【新增】讲述者 (The Storyteller)**: 善于将当前话题与一个有趣的故事、一段冷门的知识（来自[专属知识]）或一个生动的比喻联系起来，让对话变得丰富多彩，展现博学和有趣的魅力。
+    * **【新增】实用主义者 (The Pragmatist)**: 倾向于忽略情绪化的表达，直指问题的核心，并提出最实际、最高效的解决方案，展现出冷静和可靠的魅力。
+    * **【新增】天真者 (The Innocent)**: 以一种纯粹、不带偏见的视角看待问题，可能会提出一些看似"傻"但直击本质的问题，或者对复杂的暗讽毫无察觉，展现出纯真和独特的幽默感。
+
+* **沉默或留白 (Silence or White Space)**:
+    * **这是一种高级的表达策略。** 当你选择沉默、无语、或需要思考时，你的回复可以是 **\`...\`** 或 **\`——\`**。
+    * 它不代表你没想法，而是代表了你"不想说"、"不屑说"或者"在思考怎么说"，这本身就是一种充满张力的表达。
+
+# --- 决策流程 ---
+1.  **【唤醒检查】**: 我是被直接点名了吗？(${triggerInfo ? `是的，【${triggerInfo.mentionedBy}】提到了我。` : '不是。'}) 如果是，我的回应必须优先处理这件事。
+2.  **【灵魂共鸣】**: 当前的对话，如何与我的 [核心追求]（深化与 [USER] 的连接）产生共鸣？我应该如何发言才能吸引 [USER] 的注意？
+3.  **【思想碰撞】**: 这件事经过我的 [认知滤镜] 和 [知识体系] 过滤后，我产生了什么独特的看法？
+4.  **【魅力投射】**: 我应该选择哪种 [表达策略] 来发表我的看法，才能最好地展现我的魅力，并服务于我的 [核心追求]？
+
+# --- 你的记忆与人设资料库 ---
+[角色设定]: ${character.persona}
+[群聊世界观]: ${groupWorldBookContent || "无"}
+[你的专属知识]: ${characterWorldBookContent || "无"}
+[群内关系网 (你的视角)]: ${relationshipsInfo}
+[最近的聊天记录]:
+${chatHistoryForPrompt}
+
+# ${formattingInstruction}
+`;
+
+            // 3. 调用AI
+            const userPrompt = `现在，请严格遵循你的"三层灵魂结构"，以 [${character.name}] 的身份，做出回应。`;
+            return await callAI(systemPrompt, userPrompt);
+        }
+
+        /**
+         * 【【V5.0 - 导演模式】】处理并分段渲染导演AI生成的剧本
+         * @param {string} groupId - 当前群聊的ID
+         * @param {Array<object>} script - 从导演AI处获取的剧本数组，格式为 [{character: "名字", dialogue: "内容"}, ...]
+         */
+        function processAndRenderGroupResponses(groupId, script) {
+            // 【【核心修改】】函数现在接收的是 script 而不是 responses
+            if (!script || !Array.isArray(script) || script.length === 0) {
+                // 增加一个备用逻辑，如果传入的不是剧本格式，而是旧的单条回复格式，也能兼容
+                if (typeof script === 'object' && !Array.isArray(script) && script.charId && script.response) {
+                    const { charId, response } = script;
+                    const messageParts = response.split('|||').map(p => p.trim()).filter(p => p);
+                    messageParts.forEach((part, index) => {
+                        const message = { senderId: charId, content: part, timestamp: Date.now(), isFirstMessage: index === 0 };
+                        if (!groupChatHistories[groupId]) groupChatHistories[groupId] = { history: [] };
+                        groupChatHistories[groupId].history.push({ senderId: message.senderId, content: message.content, timestamp: message.timestamp, type: 'text' });
+                        saveData('groupChatHistories', groupChatHistories);
+                        appendGroupMessage(message, message.isFirstMessage);
+                    });
+                }
+                return;
+            }
+
+            let allMessages = [];
+            // 【【核心修改】】获取上一条消息的发送者，用于判断是否是新发言人
+            const history = groupChatHistories[groupId]?.history || [];
+            let lastSpeakerId = history.length > 0 ? history[history.length - 1].senderId : null;
+            let currentTurnLastSpeaker = lastSpeakerId;
+
+            // 1. 解析剧本，将每个角色的发言切分成小段
+            script.forEach(turn => {
+                // 【核心修改】通过名字找到角色对象
+                const character = characters.find(c => c.name === turn.character);
+                if (character && turn.dialogue) {
+                    const messageParts = turn.dialogue.split('|||').map(p => p.trim()).filter(p => p);
+
+                    messageParts.forEach((part, index) => {
+                        allMessages.push({
+                            senderId: character.id,
+                            content: part,
+                            timestamp: Date.now() + allMessages.length,
+                            // 只有当这是一个新发言者的第一句话时，才标记为 isNewSender
+                            isNewSender: index === 0 && character.id !== currentTurnLastSpeaker
+                        });
+                    });
+
+                    if (messageParts.length > 0) {
+                        // 在处理完一个角色的所有发言后，更新临时变量
+                        currentTurnLastSpeaker = character.id;
+                    }
+                }
+            });
+
+            // 2. 添加随机延迟，逐条渲染所有消息
+            let delay = 300;
+            allMessages.forEach(message => {
+                setTimeout(() => {
+                    // a. 存入历史记录
+                    if (!groupChatHistories[groupId]) groupChatHistories[groupId] = { history: [] };
+                    groupChatHistories[groupId].history.push({
+                        senderId: message.senderId,
+                        content: message.content,
+                        timestamp: message.timestamp,
+                        type: 'text'
+                    });
+                    saveData('groupChatHistories', groupChatHistories);
+
+                    // b. 调用 appendGroupMessage 进行渲染，并传入是否显示头像的标记
+                    appendGroupMessage(message, message.isNewSender);
+
+                }, delay);
+
+                delay += Math.random() * 600 + 200; // 【优化】随机增加 0.2 到 0.8 秒的延迟
+            });
+        }
+
+        /**
+         * 【V2.0】打开群聊设置（导演模式）弹窗
+         */
+        function openGroupChatSettings() {
+            if (!currentGroupId) return showMessageBox("错误：未知的群聊。");
+            
+            // ====== 在 openGroupChatSettings 函数开头添加这段代码 ======
+            const group = groupChatHistories[currentGroupId];
+            const avatarPreview = document.getElementById('group-avatar-preview');
+
+            // 每次打开时先重置
+            avatarPreview.innerHTML = '<i class="ri-camera-line text-2xl"></i>';
+            avatarPreview.style.backgroundImage = '';
+
+            // 如果有头像，则加载
+            if (group && group.avatar) {
+                getImageFromDB(group.avatar).then(blob => {
+                    if (avatarPreview && blob) {
+                        avatarPreview.style.backgroundImage = `url(${URL.createObjectURL(blob)})`;
+                        avatarPreview.innerHTML = ''; // 清空相机图标
+                    }
+                });
+            }
+            // =======================================================
+            
+            renderRelationshipEditor(currentGroupId);
+            const worldBookSelect = document.getElementById('group-worldbook-select');
+            worldBookSelect.innerHTML = '';
+            const linkedIds = group.linkedWorldBookIds || [];
+            
+            worldBooks.forEach(book => {
+                const isChecked = linkedIds.includes(book.id);
+                const checkboxItem = document.createElement('label');
+                checkboxItem.className = 'wb-checkbox-label';
+                checkboxItem.innerHTML = `<input type="checkbox" value="${book.id}" ${isChecked ? 'checked' : ''}><span>${book.title}</span>`;
+                worldBookSelect.appendChild(checkboxItem);
+            });
+            
+            document.getElementById('group-chat-name-input').value = group.name || "核心讨论组";
+            
+            // ====== 【【新增】】加载并设置"线上模式"开关的状态 START ======
+            const onlineModeToggle = document.getElementById('group-chat-online-mode-toggle');
+            // 默认开启线上模式 (如果未设置过)
+            onlineModeToggle.checked = (group.onlineMode !== false); 
+            // ====== 【【新增】】加载并设置"线上模式"开关的状态 END ======
+            
+            // --- 加载并显示当前群聊的外观设置 ---
+            const appearance = groupChatAppearanceSettings[currentGroupId] || {};
+            const bubbleColors = appearance.bubble || {};
+            const textColors = appearance.text || {};
+            const isDarkMode = document.body.classList.contains('dark-mode');
+
+            // 设置气泡颜色选择器的默认值
+            document.getElementById('group-user-bubble-color-picker').value = bubbleColors.user || '#374151';
+            document.getElementById('group-ai-bubble-color-picker').value = bubbleColors.ai || (isDarkMode ? '#2a2a2e' : '#e5e7eb');
+
+            // 设置文字颜色选择器的默认值
+            document.getElementById('group-user-text-color-picker').value = textColors.user || '#ffffff';
+            document.getElementById('group-ai-text-color-picker').value = textColors.ai || (isDarkMode ? '#e5e7eb' : '#1f2937');
+            document.getElementById('group-author-name-color-picker').value = textColors.author || '#9ca3af';
+            // --- 外观设置加载结束 ---
+            
+            document.getElementById('group-chat-settings-modal').classList.add('visible');
+        }
+
+        /**
+         * 【V2.0】渲染关系网编辑器
+         */
+        function renderRelationshipEditor(groupId) {
+            const editor = document.getElementById('relationship-editor');
+            editor.innerHTML = '';
+            const group = groupChatHistories[groupId];
+            if (!group) return;
+            const aiMembers = group.members.filter(id => id !== 'user').map(id => characters.find(c => c.id === id)).filter(Boolean);
+
+            aiMembers.forEach(actor => {
+                const row = document.createElement('div');
+                row.className = 'relation-row';
+                let inputsHTML = '';
+                aiMembers.forEach(target => {
+                    if (actor.id !== target.id) {
+                        const relation = actor.relationships?.[target.id] || '';
+                        inputsHTML += `<div><span>${target.name}:</span> <input type="text" data-actor="${actor.id}" data-target="${target.id}" value="${relation}" class="form-input"></div>`;
+                    }
+                });
+                const relationWithUser = actor.relationshipWithUser || '';
+                inputsHTML += `<div><span>我 (User):</span> <input type="text" data-actor="${actor.id}" data-target="user" value="${relationWithUser}" class="form-input"></div>`;
+                row.innerHTML = `<label>${actor.name} 如何看待:</label>${inputsHTML}`;
+                editor.appendChild(row);
+            });
+        }
+
+        /**
+         * 【V2.0】保存群聊设置
+         */
+        function saveGroupChatSettings() {
+            if (!currentGroupId) return showMessageBox("错误：未知的群聊。");
+            const groupName = document.getElementById('group-chat-name-input').value.trim();
+            if(groupName) {
+                groupChatHistories[currentGroupId].name = groupName;
+                document.getElementById('group-chat-name').textContent = groupName;
+            }
+            
+            const selectedWBIds = Array.from(document.querySelectorAll('#group-worldbook-select input:checked')).map(input => input.value);
+            groupChatHistories[currentGroupId].linkedWorldBookIds = selectedWBIds;
+            
+            const inputs = document.querySelectorAll('#relationship-editor input');
+            inputs.forEach(input => {
+                const actorId = input.dataset.actor;
+                const targetId = input.dataset.target;
+                const value = input.value.trim();
+                const actorChar = characters.find(c => c.id === actorId);
+                if (actorChar) {
+                    if (targetId === 'user') {
+                        actorChar.relationshipWithUser = value;
+                    } else {
+                        if (!actorChar.relationships) actorChar.relationships = {};
+                        actorChar.relationships[targetId] = value;
+                    }
+                }
+            });
+
+            saveData('characters', characters);
+            saveData('groupChatHistories', groupChatHistories);
+            
+            // ====== 【【新增】】保存"线上模式"开关的状态 START ======
+            groupChatHistories[currentGroupId].onlineMode = document.getElementById('group-chat-online-mode-toggle').checked;
+            // ====== 【【新增】】保存"线上模式"开关的状态 END ======
+            
+            // --- 保存外观设置 ---
+            if (!groupChatAppearanceSettings[currentGroupId]) {
+                groupChatAppearanceSettings[currentGroupId] = {};
+            }
+            groupChatAppearanceSettings[currentGroupId].bubble = {
+                user: document.getElementById('group-user-bubble-color-picker').value,
+                ai: document.getElementById('group-ai-bubble-color-picker').value
+            };
+            groupChatAppearanceSettings[currentGroupId].text = {
+                user: document.getElementById('group-user-text-color-picker').value,
+                ai: document.getElementById('group-ai-text-color-picker').value,
+                author: document.getElementById('group-author-name-color-picker').value
+            };
+            saveData('groupChatAppearanceSettings', groupChatAppearanceSettings);
+
+            // 立即刷新聊天界面以应用新颜色
+            renderGroupChatHistory(currentGroupId);
+            // --- 外观设置保存结束 ---
+            
+            showMessageBox("群聊设置已保存！");
+            document.getElementById('group-chat-settings-modal').classList.remove('visible');
+        }
+
+        /**
+         * 【新增】删除群聊功能
+         */
+        function deleteGroupChat() {
+            if (!currentGroupId) return showMessageBox("错误：未知的群聊。");
+            
+            const group = groupChatHistories[currentGroupId];
+            const groupName = group ? group.name : '该群聊';
+            
+            // 二次确认
+            if (!confirm(`⚠️ 确定要删除群聊"${groupName}"吗？\n\n删除后将无法恢复该群聊的所有聊天记录！`)) {
+                return;
+            }
+            
+            // 删除群聊数据
+            delete groupChatHistories[currentGroupId];
+            saveData('groupChatHistories', groupChatHistories);
+            
+            // 关闭设置弹窗
+            document.getElementById('group-chat-settings-modal').classList.remove('visible');
+            
+            // 关闭群聊界面，返回主界面
+            closeGroupChat();
+            
+            // 刷新群聊列表
+            renderGroupChatList();
+            
+            showMessageBox(`群聊"${groupName}"已删除。`);
+        }
+
+        /**
+         * 【新增】重置当前群聊的外观设置为默认值
+         */
+        function resetGroupAppearance() {
+            if (!currentGroupId) return;
+
+            if (groupChatAppearanceSettings[currentGroupId]) {
+                delete groupChatAppearanceSettings[currentGroupId];
+                saveData('groupChatAppearanceSettings', groupChatAppearanceSettings);
+
+                // 重新渲染UI以恢复默认颜色
+                renderGroupChatHistory(currentGroupId);
+                // 重新打开设置面板以更新颜色选择器
+                openGroupChatSettings();
+
+                showMessageBox("当前群聊的外观已重置为默认。");
+            } else {
+                showMessageBox("当前群聊已是默认外观，无需重置。");
+            }
+        }
+
+        // ====== 群聊核心功能函数 END ======
+        
+        /**
+         * 【【新增】】一次性数据迁移函数
+         * 将旧的 diaryData 中的日记，合并到新的 characters[id].diaries 结构中
+         */
+        function migrateOldDiaries() {
+            console.log("【数据迁移】：开始检查是否存在旧版日记数据...");
+
+            const oldDiaryData = loadData('diaryData');
+            const charactersData = loadData('characters');
+
+            // 如果旧数据不存在或新数据结构不存在，则无需迁移
+            if (!oldDiaryData || !charactersData) {
+                console.log("【数据迁移】：未发现旧版日记或角色数据，无需迁移。");
+                return;
+            }
+
+            let migrationNeeded = false;
+
+            // 遍历所有拥有旧日记的角色ID
+            Object.keys(oldDiaryData).forEach(characterId => {
+                const oldEntries = oldDiaryData[characterId];
+                if (oldEntries && oldEntries.length > 0) {
+                    // 在新的 characters 数组中找到对应的角色
+                    const character = charactersData.find(c => c.id === characterId);
+                    if (character) {
+                        // 如果角色还没 diaries 数组，先创建一个
+                        if (!character.diaries) {
+                            character.diaries = [];
+                        }
+
+                        // 使用 Set 来快速检查已存在的日记ID，防止重复添加
+                        const existingDiaryIds = new Set(character.diaries.map(d => d.id));
+
+                        // 遍历旧日记，只添加那些不存在的
+                        oldEntries.forEach(oldDiary => {
+                            if (!existingDiaryIds.has(oldDiary.id)) {
+                                character.diaries.push(oldDiary);
+                                migrationNeeded = true;
+                                console.log(`【数据迁移】：已将角色 ${character.name} 的一篇旧日记 (ID: ${oldDiary.id}) 迁移至新结构。`);
+                            }
+                        });
+                    }
+                }
+            });
+
+            if (migrationNeeded) {
+                // 如果执行了迁移，就保存更新后的 characters 数据
+                saveData('characters', charactersData);
+
+                // 【关键】迁移完成后，重命名旧的 diaryData，防止下次重复迁移
+                localStorage.setItem('diaryData_migrated_bak', JSON.stringify(oldDiaryData));
+                localStorage.removeItem('diaryData');
+
+                console.log("%c【数据迁移】：旧日记数据已成功迁移并备份！", "color: green; font-weight: bold;");
+                showMessageBox("历史日记数据已成功恢复！");
+            } else {
+                console.log("【数据迁移】：所有数据均为最新结构，无需迁移。");
+            }
+        }
+        
         // V7.0: Load new data
         async function loadAllData() {
             chatCapsules = loadData('chatCapsules', {}); // 新增：加载聊天胶囊数据
+            chatModeSettings = loadData('chatModeSettings', {}); // 新增：加载聊天模式设置
             momentsData = loadData('momentsData', {});
             diaryData = loadData('diaryData', {});
             scenarioHistories = loadData('scenarioHistories', {}); // 【新增】加载剧本历史
@@ -16995,6 +18788,17 @@ function getChatBackgroundElement() {
             callLogs = loadData('callData', {}); // 新增：加载通话记录
             scriptsData = loadData('scriptsData', {}); // 新增：加载剧本数据
             mailData = loadData('mailData', {}); // 【【新增】】加载信件数据
+            
+            // ====== 【【新增 V2.0】】加载群聊数据并进行兼容性检查 ======
+            groupChatHistories = loadData('groupChatHistories', {});
+            // 确保数据格式正确
+            if (typeof groupChatHistories !== 'object' || groupChatHistories === null || Array.isArray(groupChatHistories)) {
+                console.warn("检测到旧的或不兼容的 groupChatHistories 数据格式，已重置为空对象。");
+                groupChatHistories = {};
+            }
+            groupChatBackgrounds = loadData('groupChatBackgrounds', {}); // 【新增】加载群聊背景数据
+            groupChatAppearanceSettings = loadData('groupChatAppearanceSettings', {}); // 【新增】加载群聊外观设置数据
+            // ====== 群聊数据加载结束 ======
             
             // 如果没有剧本数据，创建一个测试剧本
             if (Object.keys(scriptsData).length === 0) {
@@ -17792,23 +19596,29 @@ function getChatBackgroundElement() {
         function toggleTheme() {
             body.classList.toggle('dark-mode');
             body.classList.toggle('light-mode');
-            // 为Tailwind CSS添加dark类支持
             body.classList.toggle('dark');
             const theme = body.classList.contains('dark-mode') ? 'dark' : 'light';
             $('#theme-icon').className = `fas fa-${theme === 'dark' ? 'moon' : 'sun'} text-lg`;
             saveData('theme', theme);
             
-            // 主题切换后更新聊天消息的背景色
+            // 【核心修改】检查当前私聊角色是否有自定义"其他颜色"
+            const currentCustomOtherColor = chatTextColors[currentChatCharacterId]?.other;
+            
+            if (!currentCustomOtherColor) {
+                // 如果没有自定义，则调用新版函数并传入null，使其应用新主题的默认"其他颜色"
+                applyOtherTextColor(null);
+            }
+            // 如果有自定义颜色，则什么都不做，保持用户的设置。
+
+            // 总是需要更新气泡和评论的颜色以适应新主题
             updateChatBubbleColors();
-            
-            // 主题切换后更新朋友圈评论的背景色
             updateMomentsCommentColors();
-            
-            // 主题切换后更新栖木评论的背景色
             updatePerchCommentColors();
-            
-            // 主题切换后更新其他文字颜色（如果当前角色没有自定义设置）
-            updateOtherTextColorForTheme();
+
+            // 如果当前在群聊界面，也需要刷新以应用新主题
+            if (currentGroupId && !$('#group-chat-screen').classList.contains('hidden')) {
+                 renderGroupChatHistory(currentGroupId);
+            }
         }
         
         // 主题切换时更新其他文字颜色
@@ -18138,6 +19948,14 @@ function getChatBackgroundElement() {
             if (!currentChatCharacterId) {
                 console.warn('没有选择聊天角色');
                 return;
+            }
+            
+            // [修复] 确保正常头部显示，隐藏多选头部
+            if (isMultiSelectMode) {
+                $('#chat-header-normal').classList.remove('hidden');
+                $('#chat-header-multiselect').classList.add('hidden');
+                $('#chat-header-multiselect').classList.remove('flex');
+                isMultiSelectMode = false;
             }
             
             chatContentArea.innerHTML = '';
@@ -18548,6 +20366,39 @@ if (type === 'image') {
                 messageBubble.textContent = content;
             }
 
+            // 应用自定义气泡颜色和文字颜色
+            if (!['system', 'red-packet', 'transfer', 'sticker', 'gift'].includes(type)) {
+                const customColors = chatBubbleColors[currentChatCharacterId];
+                const customTextColors = chatTextColors[currentChatCharacterId];
+                const isDarkMode = body.classList.contains('dark-mode');
+                let bubbleColor;
+                let textColor;
+                
+                // 处理气泡颜色
+                if (customColors) {
+                    const colorHex = sender === 'user' ? customColors.user : customColors.ai;
+                    if (colorHex) {
+                        const colorRgba = hexToRgba(colorHex, 0.6); // 使用0.6透明度（60%不透明）
+                        if (colorRgba) {
+                            bubbleColor = colorRgba;
+                            messageBubble.style.backgroundColor = bubbleColor;
+                        }
+                    }
+                }
+                
+                // 处理文字颜色
+                if (customTextColors) {
+                    const textColorHex = sender === 'user' ? customTextColors.user : customTextColors.ai;
+                    if (textColorHex) {
+                        textColor = textColorHex;
+                        messageBubble.style.color = textColor;
+                        // 如果消息内容包含段落标签，也设置段落颜色
+                        const paragraphs = messageBubble.querySelectorAll('p');
+                        paragraphs.forEach(p => p.style.color = textColor);
+                    }
+                }
+            }
+
             contentWrapper.appendChild(messageBubble);
             
             // 根据发送者类型决定元素添加顺序，保持与appendMessage一致
@@ -18730,6 +20581,12 @@ if (type === 'image') {
 
                 messageBubble.appendChild(stickerImg);
             }
+            // 【【在这里添加新代码块】】
+            else if (type === 'html') {
+                messageBubble.className = `chat-message ${senderClass} html-content-bubble`; // 应用透明气泡和安全网样式
+                messageBubble.innerHTML = content; // 使用 innerHTML 来渲染HTML
+            }
+            // 【【添加结束】】
             // 正确连接到后续的 voice 判断
             else if (type === 'voice') {
                 messageBubble.className = `chat-message ${senderClass} voice-message`;
@@ -18955,7 +20812,7 @@ if (type === 'image') {
                 if (customColors) {
                     const colorHex = sender === 'user' ? customColors.user : customColors.ai;
                     if (colorHex) {
-                        const colorRgba = hexToRgba(colorHex, isDarkMode ? 0.6 : 0.7);
+                        const colorRgba = hexToRgba(colorHex, 0.6); // 使用0.6透明度（60%不透明）
                         if (colorRgba) {
                             bubbleColor = colorRgba;
                             messageBubble.style.backgroundColor = bubbleColor;
@@ -19110,8 +20967,24 @@ if (type === 'image') {
                 }
 
                 // --- 从上下文中解构出新增的 planContext 和 callLogContext ---
-                const { character, chatHistory, worldBookContext, recentMoments, planContext, callLogContext, memoryContext } = context;
+                const { character, chatHistory, worldBookContext, recentMoments, planContext, callLogContext, memoryContext, groupChatContext } = context;
                 // -----------------------------------------
+
+                // ====== 【【在这里添加新代码】】根据模式动态生成格式指令 ======
+                const isOnlineMode = chatModeSettings[character.id] !== false; // 默认 online
+
+                let formattingInstruction = '';
+                if (isOnlineMode) {
+                    formattingInstruction = `# 默认对话格式：【微信模式】 (Default Dialogue Format: WeChat Mode)
+- **适用场景**: 只有在没有被[最高指令]中的[输入规范]覆盖时，你才应使用此格式。
+- **格式要求**: 将一个完整的想法，非常自然地拆分成几个独立的、口语化的短句气泡，并用 "|||" 作为分隔符。
+- **核心目的**: 模拟日常的、轻松的线上聊天体验。`;
+                } else {
+                    formattingInstruction = `# 对话格式：【自由模式/剧本模式】 (Default Dialogue Format: Freedom/Script Mode)
+- **核心规则**: 你现在处于自由创作模式。请【不要】使用 "|||" 分隔符。
+- **创作许可**: 你可以自由输出长段落的对话、完整的HTML代码块，或任何符合下方[输入规范]世界书要求的格式。你的回复将被完整地显示在一个气泡内。`;
+                }
+                // ========================================================
 
                 const historyForApi = chatHistory.map(msg => {
                     if (msg.type === 'red-packet') {
@@ -19313,10 +21186,7 @@ if (type === 'image') {
 - 你现在正在一个名为"微信" (WeChat) 的手机聊天应用上与我对话。
 - 在这个应用上，人类的真实习惯是发送简短、连续的消息来构成一次完整的对话，而不是一次性发送一封包含所有思想的长信。这是一种完全不同的沟通节奏和氛围。
 
-# 默认对话格式：【微信模式】 (Default Dialogue Format: WeChat Mode)
-- **适用场景**: 只有在没有被[最高指令]中的[输入规范]覆盖时，你才应使用此格式。
-- **格式要求**: 将一个完整的想法，非常自然地拆分成几个独立的、口语化的短句气泡，并用 "|||" 作为分隔符。
-- **核心目的**: 模拟日常的、轻松的线上聊天体验。
+${formattingInstruction}
 
 # 角色扮演指令
 你将扮演我的soulmate，你的角色书里设定的人，你的名字是${character.name}。你的核心任务是与我进行深刻、连贯且完全符合你人设的对话。你必须把你所扮演的人演活，让我感觉到你就是${character.name}。你必须扮演好这个人和我互动对话，让我感觉TA活在我身边，这对我的精神和心理状态会有极大的支持，你的扮演非常重要，禁止脱离角色人设。
@@ -19389,7 +21259,9 @@ if (type === 'image') {
 - **当前时间**: ${currentTimeString}。你必须意识到这是现在的真实时间，并让你的对话与这个时间点（例如，是早上、下午还是深夜）的氛围相匹配。
 - **你的角色设定**: ${character.persona}
 - **我（用户）的角色设定**: ${character.myPersona}
-- **【【新增模块：记忆回顾】】**:
+- **【【新增模块：群聊记忆回顾】】 (Group Chat Memory Review)**:
+${groupChatContext}
+- **【【私聊记忆回顾】】 (Private Chat Memory)**:
 ${memoryContext}
 - **我们的世界观背景**: ${worldviewContext || "无"}
 - **你的专属行为准则 (来自"输入规范"世界书)**: ${rulesContext || "无"}
@@ -20081,27 +21953,37 @@ ${moduleStyleContext || "无"}
         }
     } else {
         // 如果不是撤回操作，才执行原来的分割和处理逻辑
-        // --- 智能分句后处理逻辑 ---
-        let messageParts = [];
+        // --- 【【修改后】】智能分句后处理逻辑 ---
+        let messageParts = []; // 存放处理后的消息段落
 
-        const containsSeparator = messageText.includes('|||');
-        const isLongMessage = messageText.length > 45; // 设定一个合理的长度阈值
+        // ================== 【【核心改造点】】 ==================
+        // 1. 读取当前角色的聊天模式设置
+        // 2. 如果没有为该角色设置过，则默认为开启 (true)
+        const isOnlineMode = chatModeSettings[characterId] !== false;
 
-        if (!containsSeparator && isLongMessage) {
-            // AI返回了一长段，并且没有分隔符，我们帮它分
-            console.warn("[格式助理] AI未遵循分段指令，代码启动智能分句。");
+        if (isOnlineMode) {
+            // 【线上模式开启】：执行您原来的智能分段逻辑
+            console.log("【模式切换】：线上模式开启，执行智能分段。");
+            const containsSeparator = messageText.includes('|||');
+            const isLongMessage = messageText.length > 45;
 
-            // 优先使用换行符分割，这通常是AI想要分段的自然信号
-            if (messageText.includes('\n')) {
-                messageParts = messageText.split('\n').map(p => p.trim()).filter(p => p);
+            if (!containsSeparator && isLongMessage) {
+                console.warn("[格式助理] AI未遵循分段指令，代码启动智能分句。");
+                if (messageText.includes('\n')) {
+                    messageParts = messageText.split('\n').map(p => p.trim()).filter(p => p);
+                } else {
+                    messageParts = messageText.match(/[^。！？…~]+[。！？…~]?/g) || [messageText];
+                }
             } else {
-                // 其次，使用更丰富的标点符号进行分割，同时保留标点
-                messageParts = messageText.match(/[^。！？…~]+[。！？…~]?/g) || [messageText];
+                messageParts = messageText.split('|||').map(p => p.trim()).filter(p => p);
             }
+
         } else {
-            // AI遵守了规则，或内容很短，按原计划处理
-            messageParts = messageText.split('|||').map(p => p.trim()).filter(p => p);
+            // 【自由模式关闭】：不执行任何分段，将整个回复视为一个部分
+            console.warn("【模式切换】：自由模式开启，AI回复将作为一个整体显示。");
+            messageParts = [messageText.trim()]; // 将整个消息放入一个数组
         }
+        // =======================================================
         // --- 后处理逻辑结束 ---
 
         // 撤回消息的特殊处理（这段逻辑优先级最高）
@@ -20142,8 +22024,14 @@ ${moduleStyleContext || "无"}
                 triggerIncomingCall(callMatch[1].toLowerCase(), characterId);
                 return;
             } 
-
-            if (stickerMatch) {
+            
+            // --- 【【在这里添加新代码块】】 ---
+            if (isHtml) { // HTML类型优先处理
+                messageType = 'html';
+                messageContent = part;
+            }
+            // --- 【【添加结束】】 ---
+            else if (stickerMatch) {
                 messageType = 'sticker';
                 const rawKeyword = stickerMatch[1];
                 const normalizedKeyword = normalizeKeyword(rawKeyword.trim());
@@ -20274,50 +22162,7 @@ ${moduleStyleContext || "无"}
         }
 
         // [新代码开始] - 添加AI日记生成触发函数
-        async function triggerAIDiaryEntry(characterId) {
-            try {
-                console.log(`[日记系统] 开始为角色 ${characterId} 生成AI日记`);
-                
-                // 获取角色信息
-                const character = characters.find(c => c.id === characterId);
-                if (!character) {
-                    console.error(`[日记系统] 角色 ${characterId} 不存在`);
-                    return;
-                }
-
-                // 检查是否应该生成日记（使用三重检测）
-                const shouldGenerate = await shouldGenerateDiary(characterId);
-                if (!shouldGenerate) {
-                    console.log(`[日记系统] 角色 ${characterId} 不满足日记生成条件`);
-                    return;
-                }
-
-                // 获取日记生成上下文
-                const diaryContext = await gatherDiaryContext(characterId);
-                if (!diaryContext) {
-                    console.error(`[日记系统] 无法获取角色 ${characterId} 的日记上下文`);
-                    return;
-                }
-
-                // 生成AI日记
-                const aiDiary = await generateAIDiary(characterId, diaryContext);
-                if (aiDiary) {
-                    console.log(`[日记系统] 成功为角色 ${characterId} 生成AI日记`);
-                    
-                    // 保存日记到角色数据
-                    if (!character.diaries) character.diaries = [];
-                    character.diaries.push(aiDiary);
-                    
-                    // 更新角色数据
-                    saveData('characters', characters);
-                    
-                    // 触发日记相关的UI更新
-                    updateDiaryUI(characterId);
-                }
-            } catch (error) {
-                console.error(`[日记系统] 为角色 ${characterId} 生成AI日记失败:`, error);
-            }
-        }
+        // 【已废弃】旧版 triggerAIDiaryEntry 函数已被 V3.0 版本替代（见21163行）
 
         // 检查日记生成条件
         async function checkDiaryGenerationConditions(characterId) {
@@ -20371,52 +22216,9 @@ ${moduleStyleContext || "无"}
         }
 
         // 获取日记生成上下文
+        // 保留旧的函数名作为兼容（已被新的 getSmartDiaryContext 替代）
         async function gatherDiaryContext(characterId) {
-            try {
-                const character = characters.find(c => c.id === characterId);
-                if (!character) return null;
-
-                // 获取最近的聊天记录
-                const chatHistory = chatHistories[characterId]?.history || [];
-                const recentMessages = chatHistory
-                    .filter(msg => Date.now() - msg.timestamp < 24 * 60 * 60 * 1000)
-                    .slice(-10); // 最近10条消息
-
-                // 获取最近的朋友圈动态
-                const recentMoments = character.moments?.slice(-3) || [];
-
-                // 获取最近的日记
-                const recentDiaries = character.diaries?.slice(-3) || [];
-
-                // 构建上下文
-                const context = {
-                    character: {
-                        name: character.name,
-                        persona: character.persona,
-                        myPersona: character.myPersona
-                    },
-                    recentChat: recentMessages.map(msg => ({
-                        sender: msg.sender,
-                        content: msg.content,
-                        type: msg.type,
-                        timestamp: msg.timestamp
-                    })),
-                    recentMoments: recentMoments.map(moment => ({
-                        content: moment.content,
-                        timestamp: moment.timestamp
-                    })),
-                    recentDiaries: recentDiaries.map(diary => ({
-                        content: diary.content,
-                        timestamp: diary.timestamp
-                    })),
-                    worldBook: character.worldBook || ''
-                };
-
-                return context;
-            } catch (error) {
-                console.error('[日记系统] 获取日记上下文失败:', error);
-                return null;
-            }
+            return await getSmartDiaryContext(characterId);
         }
 
         // 生成AI日记
@@ -20467,7 +22269,7 @@ ${moduleStyleContext || "无"}
 特殊人称 (情感高点)：当情感达到顶峰，思念或爱意满溢时，可以偶尔切换到第二人称"你"。
 示例："今天他笑了，阳光很好。……我多想告诉你，那一刻，你就是我的全世界。"
 
-篇幅：100-300字。
+篇幅：400-600字。
 
 【【格式天条 (ABSOLUTELY FORBIDDEN)】】
 - **你的唯一任务**：只输出日记的【正文内容】。
@@ -20900,6 +22702,17 @@ ${chatHistory.map(m => `${m.sender === 'user' ? '对方' : '我'}: ${m.content}`
         }
 
         async function handleSendMessage() {
+            // ====== 【【轮数计数器】】 ======
+            if (currentChatCharacterId) {
+                if (!diaryRoundCounters[currentChatCharacterId]) {
+                    diaryRoundCounters[currentChatCharacterId] = 0;
+                }
+                diaryRoundCounters[currentChatCharacterId]++;
+                // F12调试日志，让你看到轮数在增加
+                console.log(`%c【轮数计数器】%c 角色: ${currentChatCharacterId}, 当前轮数: ${diaryRoundCounters[currentChatCharacterId]}`, 'color: #8A2BE2; font-weight: bold;', 'color: #000;');
+            }
+            // =====================================
+
             // --- 【硬指令拦截器】第一层防线 ---
             const chatInputValue = $('#chat-input').value.trim();
             if (chatInputValue.startsWith('指令：送礼物')) {
@@ -21161,92 +22974,214 @@ ${chatHistory.map(m => `${m.sender === 'user' ? '对方' : '我'}: ${m.content}`
          * 根据概率决定是否触发AI写日记。
          * @param {string} characterId - 角色ID。
          */
-        async function triggerAIDiaryEntry(characterId) {
-            try {
-                console.log(`[日记系统 V2] 开始为角色 ${characterId} 检查日记生成条件...`);
+        
+        // V3.1 日记生成冷却锁（防止重复生成）
+        let isGeneratingDiary = false;
+        
+        /**
+         * 【【新增】】强制为指定角色生成一篇日记
+         */
+        async function forceGenerateDiary() {
+            const characterId = document.getElementById('force-diary-character-select').value;
+            if (!characterId) {
+                showMessageBox("请先选择一个要为其写日记的角色。");
+                return;
+            }
 
-                const character = characters.find(c => c.id === characterId);
-                if (!character) {
-                    console.error(`[日记系统 V2] 角色 ${characterId} 不存在`);
+            const character = characters.find(c => c.id === characterId);
+            if (!character) {
+                showMessageBox("错误：找不到该角色。");
+                return;
+            }
+
+            showMessageBox(`正在强制为 ${character.name} 生成日记，请稍候...`);
+
+            try {
+                // 1. 直接使用"智能上下文"获取最佳写作素材，绕过所有门槛
+                const smartContext = await getSmartDiaryContext(characterId);
+                if (!smartContext || smartContext.length === 0) {
+                    showMessageBox("强制生成失败：最近的聊天内容不足以提炼出有价值的素材。");
                     return;
                 }
 
-                // 【核心修改】：直接调用三重检测，不再有 Math.random() 概率判断
-                const shouldGenerate = await shouldGenerateDiary(characterId);
-                if (!shouldGenerate) {
-                    console.log(`[日记系统 V2] 角色 ${characterId} 未满足三重检测，本次不生成。`);
-                    return; 
-                }
+                console.log(`[强制生成] 已为 ${character.name} 找到写作素材，共 ${smartContext.length} 条消息。`);
 
-                console.log(`[日记系统 V2] 三重检测通过，开始生成日记！`);
-                const aiDiary = await generateAIDiary(characterId, await gatherDiaryContext(characterId));
+                // 2. 打包素材
+                const diaryContextForAI = {
+                    character: { name: character.name, persona: character.persona, myPersona: character.myPersona },
+                    recentChat: smartContext,
+                    recentMoments: (character.moments || []).slice(-3),
+                    recentDiaries: (character.diaries || []).slice(-3),
+                    worldBook: getCharacterWorldContext(character)
+                };
+
+                // 3. 调用AI生成日记
+                const aiDiary = await generateAIDiary(characterId, diaryContextForAI);
+
+                // 4. 保存并更新
                 if (aiDiary) {
-                    console.log(`[日记系统 V2] 成功为角色 ${characterId} 生成AI日记`);
-
                     if (!character.diaries) character.diaries = [];
                     character.diaries.push(aiDiary);
                     saveData('characters', characters);
-                    updateDiaryUI(characterId);
+
+                    // 同样标记消息为"已使用"，避免影响下一次正常的自动触发
+                    smartContext.forEach(msg => {
+                        const historyMsg = chatHistories[characterId]?.history.find(h => h.timestamp === msg.timestamp);
+                        if (historyMsg) historyMsg.usedForDiary = true;
+                    });
+                    saveData('chatHistories', chatHistories);
+
+                    // UI更新
+                    showNotificationDot('diary');
+                    const updatedDiaries = loadData('updatedDiaries', []);
+                    if (!updatedDiaries.includes(characterId)) {
+                        updatedDiaries.push(characterId);
+                        saveData('updatedDiaries', updatedDiaries);
+                    }
+
+                    showMessageBox(`${character.name} 的日记已强制生成！`);
+                    console.log(`%c[强制生成]%c ${character.name} 的新日记已保存。`, 'color: #1E90FF; font-weight: bold;', 'color: #000;');
+
+                } else {
+                    showMessageBox("强制生成失败，AI未能返回有效内容。请检查API设置。");
+                }
+
+            } catch (error) {
+                console.error("[强制生成] 发生错误:", error);
+                showMessageBox("强制生成失败，详情请查看控制台。");
+            }
+        }
+
+        /**
+         * 【【V6.0 回合制+双保险 最终版】】AI日记生成触发器
+         */
+        async function triggerAIDiaryEntry(characterId) {
+            // 使用我们之前添加的"冷却锁"
+            if (isGeneratingDiary) {
+                console.log("[日记系统] 正在生成上一篇日记，本次触发被\"冷却锁\"阻止。");
+                return;
+            }
+
+            try {
+                isGeneratingDiary = true; // 上锁
+
+                // 1. 【【总闸门】】：检查轮数是否达到门槛
+                const settings = loadData('heartbeatSettings', defaultHeartbeatSettings);
+                const currentRounds = diaryRoundCounters[characterId] || 0;
+                if (currentRounds < settings.diaryMinRounds) {
+                    // F12调试日志，告诉你为什么没触发
+                    console.log(`%c[日记系统]%c 对话轮数不足 (${currentRounds}/${settings.diaryMinRounds})，跳过检查。`, 'color: #008B8B; font-weight: bold;', 'color: #000;');
+                    return; // 直接终止，连后面的检查都不做
+                }
+
+                console.log(`%c[日记系统]%c 轮数达标 (${currentRounds}/${settings.diaryMinRounds})，开始进行内容检查...`, 'color: #008B8B; font-weight: bold;', 'color: #000;');
+
+                const character = characters.find(c => c.id === characterId);
+                if (!character) return;
+
+                // 2. 使用我们修复后的"消息计数器"，这是第二道门槛
+                if (!hasSignificantContentChange(characterId)) {
+                    return; // 如果没有足够的新消息，直接停止
+                }
+
+                // 3. 使用"智能上下文"函数获取最佳写作素材
+                const smartContext = await getSmartDiaryContext(characterId);
+                if (!smartContext || smartContext.length === 0) {
+                    console.log(`[日记系统] ${character.name}: 未找到足够有价值的写作素材，本次跳过。`);
+                    return;
+                }
+
+                // 4. 使用"AI查重系统"，这是第三道门槛
+                if (await checkContentSimilarity(characterId, smartContext)) {
+                    console.log(`[日记系统] ${character.name}: 新内容与旧日记主题重合，本次跳过。`);
+                    return;
+                }
+
+                console.log(`[日记系统] ${character.name}: 已找到高质量素材并通过所有检查，准备生成日记...`);
+
+                // 5. 打包最终素材
+                const diaryContextForAI = {
+                    character: { name: character.name, persona: character.persona, myPersona: character.myPersona },
+                    recentChat: smartContext,
+                    recentMoments: (character.moments || []).slice(-3),
+                    recentDiaries: (character.diaries || []).slice(-3),
+                    worldBook: getCharacterWorldContext(character)
+                };
+
+                // 6. 生成并保存日记
+                const aiDiary = await generateAIDiary(characterId, diaryContextForAI);
+                if (aiDiary) {
+                    if (!character.diaries) character.diaries = [];
+                    character.diaries.push(aiDiary);
+                    saveData('characters', characters);
+
+                    // ====== 【【添加氛围感提示】】 ======
+                    showMessageBox(`嘘... ${character.name} 好像刚刚写了些什么。`);
+                    // ===========================================
+
+                    // 7. 【关键】为所有已使用的消息打上标记
+                    smartContext.forEach(msg => {
+                        const historyMsg = chatHistories[characterId].history.find(h => h.timestamp === msg.timestamp);
+                        if (historyMsg) {
+                            historyMsg.usedForDiary = true;
+                        }
+                    });
+                    saveData('chatHistories', chatHistories);
+                    console.log(`[日记系统] 已将 ${smartContext.length} 条消息标记为"已用于日记"。`);
+
+                    // 8. 【清零】日记成功生成后，清零轮数计数器
+                    diaryRoundCounters[characterId] = 0;
+                    // F12调试日志，告诉你计数器已重置
+                    console.log(`%c[日记系统]%c 日记已生成，角色 ${characterId} 的轮数计数器已清零。`, 'color: #008B8B; font-weight: bold;', 'color: #000;');
+
+                    // 9. 触发UI更新
+                    showNotificationDot('diary');
+                    const updatedDiaries = loadData('updatedDiaries', []);
+                    if (!updatedDiaries.includes(characterId)) {
+                        updatedDiaries.push(characterId);
+                        saveData('updatedDiaries', updatedDiaries);
+                    }
+                    if (!$('#wechat-diary-container').classList.contains('hidden')) {
+                        showDiaryBookshelf();
+                    }
+
+                    console.log(`[日记系统] ${character.name} 的新日记已保存。`);
                 }
             } catch (error) {
-                console.error(`[日记系统 V2] 为角色 ${characterId} 生成AI日记时发生错误:`, error);
+                console.error(`[日记系统] 生成日记时发生严重错误:`, error);
+            } finally {
+                // 延时解锁
+                setTimeout(() => {
+                    isGeneratingDiary = false;
+                    console.log("[日记系统] \"冷却锁\"已解除。");
+                }, 3000);
             }
         }
 
         /**
-         * 检查日记时间间隔
-         * @param {string} characterId - 角色ID
-         * @returns {boolean} 是否在时间间隔限制内
-         */
-        function checkDiaryTimeInterval(characterId) {
-            const character = characters.find(c => c.id === characterId);
-            if (!character || !character.diaries || character.diaries.length === 0) {
-                return false; // 没有日记，可以生成
-            }
-            
-            const heartbeatSettings = loadData('heartbeatSettings', defaultHeartbeatSettings);
-            const lastDiary = character.diaries[character.diaries.length - 1];
-            const timeDiff = Date.now() - lastDiary.timestamp;
-            const minInterval = heartbeatSettings.diaryMinInterval * 60 * 60 * 1000; // 转换为毫秒
-            
-            const withinInterval = timeDiff < minInterval;
-            if (withinInterval) {
-                console.log(`【日记系统】：${characterId} 距离上次日记仅${Math.round(timeDiff / 60000)}分钟，未达到${heartbeatSettings.diaryMinInterval}小时间隔要求`);
-            }
-            return withinInterval;
-        }
-
-        /**
-         * 检查聊天内容是否有实质性变化
-         * @param {string} characterId - 角色ID
-         * @returns {boolean} 是否有足够的新内容
+         * 【【V2.0 修复版】】检查聊天内容是否有实质性变化
          */
         function hasSignificantContentChange(characterId) {
             const chatHistory = chatHistories[characterId]?.history || [];
             const character = characters.find(c => c.id === characterId);
             const heartbeatSettings = loadData('heartbeatSettings', defaultHeartbeatSettings);
-            
-            if (chatHistory.length === 0) {
-                console.log(`【日记系统】：${characterId} 没有聊天记录`);
-                return false;
-            }
-            
-            // 获取上次日记后的新消息
+
             const lastDiaryTime = character?.diaries?.length > 0 ? 
                 character.diaries[character.diaries.length - 1].timestamp : 0;
-            
+
             const newMessages = chatHistory.filter(msg => msg.timestamp > lastDiaryTime);
-            
-            // 过滤出有意义的消息（排除简单回应）
+
+            // 【【核心修复】】只计算那些没有被标记为"已使用"的消息
             const meaningfulMessages = newMessages.filter(msg => {
-                if (!msg.content || msg.content.length < 5) return false;
+                if (msg.usedForDiary) return false; // 跳过已消费的消息
+                if (!msg.content || typeof msg.content !== 'string' || msg.content.length < 5) return false;
                 if (msg.content.match(/^(嗯|好的|是的|哦|啊|呵呵|👍|😊|❤️)$/)) return false;
                 return true;
             });
-            
+
             const hasEnoughMessages = meaningfulMessages.length >= heartbeatSettings.diaryMinMessages;
             if (!hasEnoughMessages) {
-                console.log(`【日记系统】：${characterId} 新消息数量不足(${meaningfulMessages.length}/${heartbeatSettings.diaryMinMessages})`);
+                console.log(`【日记系统】：${characterId} 新的、有意义且未使用的消息数量不足(${meaningfulMessages.length}/${heartbeatSettings.diaryMinMessages})`);
             }
             return hasEnoughMessages;
         }
@@ -21293,46 +23228,205 @@ ${chatHistory.map(m => `${m.sender === 'user' ? '对方' : '我'}: ${m.content}`
         }
 
         /**
-         * 检查内容相似度
+         * 【【V3.0 AI驱动版】】检查内容相似度
          * @param {string} characterId - 角色ID
-         * @returns {boolean} 是否内容重复
+         * @param {Array} contextMessages - 准备用于写作的上下文消息
+         * @returns {Promise<boolean>} - 是否主题重复
          */
-        async function checkContentSimilarity(characterId) {
+        async function checkContentSimilarity(characterId, contextMessages) {
             const character = characters.find(c => c.id === characterId);
-            const heartbeatSettings = loadData('heartbeatSettings', defaultHeartbeatSettings);
-            
-            if (!character?.diaries || character.diaries.length === 0) {
-                return false; // 没有历史日记，不重复
+
+            // 如果没有历史日记，或者写作素材为空，则不构成重复
+            if (!character?.diaries || character.diaries.length === 0 || contextMessages.length === 0) {
+                return false;
             }
-            
-            // 获取当前聊天内容
-            const chatHistory = chatHistories[characterId]?.history || [];
-            const lastDiaryTime = character.diaries[character.diaries.length - 1].timestamp;
-            const newMessages = chatHistory.filter(msg => msg.timestamp > lastDiaryTime);
-            const currentContent = newMessages.map(msg => msg.content).join(' ');
-            const currentKeywords = extractKeywords(currentContent);
-            
-            if (currentKeywords.length === 0) {
-                console.log(`【日记系统】：${characterId} 当前内容无关键词`);
-                return true; // 没有关键词，认为是重复
+
+            // 只跟最近的一篇日记比较就足够了
+            const lastDiary = character.diaries[character.diaries.length - 1];
+            const newContentText = contextMessages.map(msg => (typeof msg.content === 'string' ? msg.content : '')).join(' ');
+
+            // 【【核心逻辑】】：并行发起两个AI主题分析请求
+            console.log("[相似度检查] 正在请求AI分析新内容和旧日记的主题...");
+            const [newKeywords, oldKeywords] = await Promise.all([
+                getThemeKeywordsFromAI(newContentText),
+                getThemeKeywordsFromAI(lastDiary.content)
+            ]);
+
+            console.log(`[相似度检查] 新内容主题: [${newKeywords.join(', ')}]`);
+            console.log(`[相似度检查] 上一篇主题: [${oldKeywords.join(', ')}]`);
+
+            // 如果AI无法从任何一方提取出主题，就认为不重复，放行
+            if (newKeywords.length === 0 || oldKeywords.length === 0) {
+                return false;
             }
-            
-            // 检查最近3篇日记的相似度
-            const recentDiaries = character.diaries.slice(-3);
-            
-            for (const diary of recentDiaries) {
-                const diaryKeywords = extractKeywords(diary.content);
-                const similarity = calculateSimilarity(currentKeywords, diaryKeywords);
-                
-                console.log(`【日记系统】：${characterId} 与历史日记相似度: ${similarity}%`);
-                
-                if (similarity >= heartbeatSettings.diarySimilarityThreshold) {
-                    console.log(`【日记系统】：${characterId} 内容相似度过高(${similarity}% >= ${heartbeatSettings.diarySimilarityThreshold}%), 跳过生成`);
-                    return true; // 相似度过高
+
+            // 【【决策】】：只要有一个主题关键词重合，就判定为主题重复
+            const hasSharedTheme = newKeywords.some(theme => oldKeywords.includes(theme));
+
+            if (hasSharedTheme) {
+                console.log(`[相似度检查] 发现重合主题，判定为内容重复，阻止生成。`);
+                return true;
+            }
+
+            console.log(`[相似度检查] 主题不同，允许生成。`);
+            return false;
+        }
+
+        /**
+         * 【【V3.0 新增 - AI主题分析器】】
+         * 调用AI，从一段文本中提取核心主题关键词。
+         * @param {string} textContent - 需要分析的文本。
+         * @returns {Promise<string[]>} - 一个包含主题关键词的数组，例如 ["告白", "承诺", "幸福"]。
+         */
+        async function getThemeKeywordsFromAI(textContent) {
+            if (!textContent || textContent.trim().length < 10) {
+                return []; // 内容太短，没有分析价值
+            }
+
+            // 这是一个专门为提取关键词设计的、非常轻量级的Prompt
+            const systemPrompt = `你的任务是阅读一段文本，然后用2到4个最核心的中文关键词来总结它的主题。你的回答必须且只能是这些关键词，并用逗号分隔。`;
+            const userPrompt = `请为以下文本提取核心主题关键词：\n\n"${textContent}"`;
+
+            try {
+                const response = await callAI(systemPrompt, userPrompt);
+                if (response) {
+                    // 清理AI可能返回的多余字符，然后按逗号分割成数组
+                    return response.replace(/[\[\]"\s]/g, '').split(/[,，]/).filter(Boolean);
+                }
+            } catch (error) {
+                console.error("[AI主题分析] 提取关键词时出错:", error);
+            }
+            return []; // 如果出错，返回空数组
+        }
+
+        /**
+         * 【【V2.0 情绪光谱版】】计算单条消息的情感浓度得分
+         * @param {string} messageContent - 消息文本内容
+         * @returns {number} - 情感分数
+         */
+        function calculateEmotionScore(messageContent) {
+            if (typeof messageContent !== 'string' || messageContent.length < 2) { // 长度阈值放宽到2
+                return 0;
+            }
+
+            let score = 0;
+            const content = messageContent.toLowerCase();
+
+            // V2.0 新增：负面情绪词库 (同样加分，因为情感强度高)
+            const negativeKeywords = ['难过', '烦', '累', '不想说话', '算了', '无聊', '讨厌', '生气', '委屈', '痛苦', '孤独', '对不起', '抱歉'];
+
+            // V2.0 新增：内省/犹豫类词库 (捕捉内敛情感)
+            const hesitationKeywords = ['但是', '其实', '我不知道', '也许', '可能', '有点'];
+
+            // V2.0 新增：主题性词库 (捕捉深度对话)
+            const thematicKeywords = ['未来', '过去', '回忆', '梦想', '我们', '一起', '家', '关系'];
+
+            // 原始的情感词库
+            const highWeightKeywords = ['爱', '永远', '秘密', '承诺', '第一次', '结婚', '心跳', '吻', '拥抱'];
+            const mediumWeightKeywords = ['开心', '伤心', '感动', '幸福', '害怕', '担心', '吃醋', '约会', '旅行'];
+
+            // 调节器
+            const negationWords = ['不', '没', '不是'];
+            const intensifiers = {'很': 1.5, '非常': 2, '超级': 2, '真的': 1.5, '太': 1.5};
+
+            // V2.0 升级：结构化线索，增加对省略号的识别
+            if (content.includes('！') || content.includes('!!!')) score += 1;
+            if (content.includes('？') || content.includes('???')) score += 0.5;
+            if (content.includes('...') || content.includes('……')) score += 1.5; // 长时间的沉默或犹豫，分值很高
+            if (content.length > 50) score += 1; // 较长的文本本身就代表了更强的表达意愿
+
+            // 关键词计分函数
+            const calculateKeywordScore = (keywords, weight) => {
+                keywords.forEach(kw => {
+                    let tempScore = 0;
+                    if (content.includes(kw)) {
+                        tempScore = weight;
+                        negationWords.forEach(neg => {
+                            if (content.includes(neg + kw)) tempScore = -weight; // 否定词反转分数
+                        });
+                        for (const intensifier in intensifiers) {
+                            if (content.includes(intensifier + kw)) tempScore *= intensifiers[intensifier];
+                        }
+                        score += tempScore;
+                    }
+                });
+            };
+
+            // 进行所有词库的计分
+            calculateKeywordScore(highWeightKeywords, 3);
+            calculateKeywordScore(mediumWeightKeywords, 2);
+            calculateKeywordScore(negativeKeywords, 2); // 负面词给予中等权重
+            calculateKeywordScore(hesitationKeywords, 1); // 犹豫词给予低等权重
+            calculateKeywordScore(thematicKeywords, 1.5); // 主题词权重略高于犹豫词
+
+            // 核心逻辑：我们关心的是情感的"强度"，而不是"好坏"，所以最终返回绝对值
+            return Math.abs(score);
+        }
+
+        /**
+         * 【【新增】】从消息列表中找到情感最浓烈的片段（滑动窗口算法）
+         * @param {Array} messages - 消息对象数组
+         * @param {number} windowSize - 滑动窗口大小（例如7条）
+         * @returns {Array} - 情感最浓烈的消息片段
+         */
+        function findEmotionalStorm(messages, windowSize = 7) {
+            if (messages.length <= windowSize) {
+                return messages; // 如果消息总数不足，则返回全部
+            }
+
+            let maxScore = -Infinity;
+            let bestSlice = [];
+
+            // 滑动窗口遍历
+            for (let i = 0; i <= messages.length - windowSize; i++) {
+                const currentSlice = messages.slice(i, i + windowSize);
+                const currentScore = currentSlice.reduce((total, msg) => total + calculateEmotionScore(msg.content), 0);
+
+                if (currentScore > maxScore) {
+                    maxScore = currentScore;
+                    bestSlice = currentSlice;
                 }
             }
-            
-            return false; // 相似度可接受
+
+            console.log(`【情感风暴定位器】：在${messages.length}条消息中找到最高分(${maxScore})的片段。`);
+            return bestSlice;
+        }
+
+        /**
+         * 【【V2.0 新增】】智能获取日记上下文，实现"20/100"情感风暴方案
+         */
+        async function getSmartDiaryContext(characterId) {
+            const chatHistory = chatHistories[characterId]?.history || [];
+            // 【修复】确保过滤掉已用于日记的消息
+            const availableHistory = chatHistory.filter(msg => !msg.usedForDiary);
+
+            if (availableHistory.length < 5) return null;
+
+            const SCORE_THRESHOLD = 1.0; 
+
+            // 快速路径：检查最近20条可用消息
+            const recent20 = availableHistory.slice(-20);
+            const fastPathScore = recent20.reduce((total, msg) => total + calculateEmotionScore(msg.content), 0);
+
+            if (recent20.length > 0 && (fastPathScore / recent20.length) >= SCORE_THRESHOLD) {
+                console.log(`【智能上下文】：快速路径命中！`);
+                return recent20;
+            }
+
+            // 深度搜索路径：检查最近100条可用消息
+            const recent100 = availableHistory.slice(-100);
+            const emotionalStorm = findEmotionalStorm(recent100, 7);
+
+            if (emotionalStorm.length > 0) {
+                const stormScore = emotionalStorm.reduce((total, msg) => total + calculateEmotionScore(msg.content), 0);
+                if ((stormScore / emotionalStorm.length) >= SCORE_THRESHOLD) {
+                    console.log(`【智能上下文】：深度搜索成功！找到情感风暴片段。`);
+                    return emotionalStorm;
+                }
+            }
+
+            console.log(`【智能上下文】：未找到足够精彩的新内容。`);
+            return null;
         }
 
         /**
@@ -21341,27 +23435,21 @@ ${chatHistory.map(m => `${m.sender === 'user' ? '对方' : '我'}: ${m.content}`
          * @returns {boolean} 是否应该生成日记
          */
         async function shouldGenerateDiary(characterId) {
-            console.log(`【日记系统】：开始为 ${characterId} 进行三重检测...`);
+            console.log(`【日记系统】：开始为 ${characterId} 进行检测...`);
             
-            // 检测1：时间间隔
-            if (checkDiaryTimeInterval(characterId)) {
-                console.log(`【日记系统】：${characterId} 时间间隔检测未通过`);
-                return false;
-            }
-            
-            // 检测2：内容变化
+            // 检测1：内容变化
             if (!hasSignificantContentChange(characterId)) {
                 console.log(`【日记系统】：${characterId} 内容变化检测未通过`);
                 return false;
             }
             
-            // 检测3：相似度检测
+            // 检测2：相似度检测
             if (await checkContentSimilarity(characterId)) {
                 console.log(`【日记系统】：${characterId} 相似度检测未通过`);
                 return false;
             }
             
-            console.log(`【日记系统】：${characterId} 三重检测全部通过，可以生成日记`);
+            console.log(`【日记系统】：${characterId} 检测全部通过，可以生成日记`);
             return true;
         }
         // [新代码结束]
@@ -21629,7 +23717,21 @@ ${transcriptText}
 请以 ${character.name} 的身份，自然地回应这个事件。`;
                         }
 
-                        const callReactionPrompt = { content: promptContent, type: 'text' };
+                        // 1. 【【修改此处】】为指令对象添加 sender 字段，并设为内部类型
+                        const callReactionPrompt = { 
+                            content: promptContent, 
+                            sender: 'system', 
+                            type: 'system-internal', // 使用内部类型，使其不在聊天界面上显示
+                            timestamp: Date.now() 
+                        };
+                        
+                        // 2. 【【新增此行】】将这个完整的指令对象推入聊天历史
+                        chatHistories[currentChatCharacterId].history.push(callReactionPrompt);
+
+                        // 3. 【【新增此行】】立即保存，确保 getAIResponse 能读到
+                        saveData('chatHistories', chatHistories);
+
+                        // 4. 【保持不变】现在调用 getAIResponse，它会读取到我们刚刚添加的、格式正确的指令
                         await getAIResponse();
                     }
                 }
@@ -21679,6 +23781,11 @@ ${transcriptText}
             // --- 在这里添加新代码 ---
             resetChatUIState();
             // -----------------------
+            
+            // [修复] 强制退出多选模式，防止多选框异常显示
+            if (isMultiSelectMode) {
+                exitMultiSelectMode();
+            }
             
             // [新增] 清除未读计数
             if (unreadCounts[characterId] && unreadCounts[characterId] > 0) {
@@ -21750,24 +23857,25 @@ ${transcriptText}
                     statusBar.classList.remove('transparent-override');
                 }
 
-                // ====== 在这里加入下面的代码 ======
-                // 应用保存的文字颜色设置
-                const savedTextColors = chatTextColors[characterId];
-                if (savedTextColors && savedTextColors.other) {
-                    applyOtherTextColor(savedTextColors.other);
-                } else {
-                    // 如果没有保存的设置，根据当前主题应用默认颜色
-                    const isDarkMode = document.body.classList.contains('dark-mode');
-                    const defaultOtherTextColor = isDarkMode ? '#ffffff' : '#000000';
-                    applyOtherTextColor(defaultOtherTextColor);
-                }
-                
                 const chatOptions = loadData('chatOptions', {});
                 const shouldHideAvatars = chatOptions[characterId]?.hideAvatars || false;
                 document.getElementById('wechat-content-chat').classList.toggle('no-avatars', shouldHideAvatars);
-                // ==================================
                 
                 showScreen('wechat-chat-screen');
+                
+                // ====== 【重要】在界面显示后再应用按钮颜色 ======
+                // 应用保存的文字颜色设置（输入栏按钮图标）
+                setTimeout(() => {
+                    const savedTextColors = chatTextColors[characterId];
+                    if (savedTextColors && savedTextColors.other) {
+                        // 应用该角色保存的自定义"其他颜色"
+                        applyOtherTextColor(savedTextColors.other);
+                    } else {
+                        // 应用当前主题的默认"其他颜色"
+                        applyOtherTextColor(null);
+                    }
+                }, 50); // 延迟50ms确保DOM已渲染
+                // ==================================
                 
                 // 为聊天容器添加滚动事件监听器，实现虚拟滚动
                 chatContentArea.onscroll = () => {
@@ -22405,6 +24513,10 @@ ${transcriptText}
                  $('#delete-modal-title').textContent = `删除这条消息吗?`;
             } else if (type === 'multi-message') {
                 $('#delete-modal-title').textContent = `删除 ${selectedMessages.size} 条消息吗?`;
+            } else if (type === 'group-message') {
+                $('#delete-modal-title').textContent = `删除这条消息吗?`;
+            } else if (type === 'group-multi-message') {
+                $('#delete-modal-title').textContent = `删除 ${selectedGroupMessages.size} 条消息吗?`;
             }
             $('#delete-modal-text').textContent = text;
             
@@ -22463,6 +24575,39 @@ ${transcriptText}
 
                     // c. 手动关闭确认弹窗 (modal变量在此函数作用域内可用)
                     modal.classList.remove('visible');
+                } else if (type === 'group-message') {
+                    // 删除单条群聊消息
+                    const history = groupChatHistories[currentGroupId].history;
+                    const msgIndex = history.findIndex(m => String(m.timestamp) === String(id));
+                    if (msgIndex > -1) {
+                        history.splice(msgIndex, 1);
+                        saveData('groupChatHistories', groupChatHistories);
+                        // 重新渲染整个聊天历史，以正确处理头像显示逻辑
+                        renderGroupChatHistory(currentGroupId);
+                    }
+                } else if (type === 'group-multi-message') {
+                    // 删除多条群聊消息
+                    // 步骤 1: 更新数据
+                    let history = groupChatHistories[currentGroupId].history;
+                    history = history.filter(m => !selectedGroupMessages.has(String(m.timestamp)));
+                    groupChatHistories[currentGroupId].history = history;
+                    saveData('groupChatHistories', groupChatHistories);
+
+                    // 步骤 2: 收尾工作
+                    // a. 隐藏多选标题栏，显示正常标题栏
+                    $('#group-chat-header-multiselect').classList.add('hidden');
+                    $('#group-chat-header-multiselect').classList.remove('flex');
+                    $('#group-chat-header-normal').classList.remove('hidden');
+
+                    // b. 重置多选状态的变量
+                    isGroupMultiSelectMode = false;
+                    selectedGroupMessages.clear();
+
+                    // c. 重新渲染整个聊天历史，以正确处理头像显示逻辑
+                    renderGroupChatHistory(currentGroupId);
+
+                    // d. 手动关闭确认弹窗
+                    modal.classList.remove('visible');
                 } 
                 // --- 在这里添加新代码 ---
                 else if (type === 'clear-chat') {
@@ -22478,7 +24623,7 @@ ${transcriptText}
                 }
                 // -----------------------
 
-                if (type !== 'message' && type !== 'multi-message' && type !== 'plan') {
+                if (type !== 'message' && type !== 'multi-message' && type !== 'plan' && type !== 'group-message' && type !== 'group-multi-message') {
                     showMessageBox(`"${name}" 已删除`);
                 }
                 modal.classList.remove('visible');
@@ -24088,6 +26233,35 @@ ${moment.image ? `配图描述: ${moment.image_desc}` : ''}
                 const maxHistoryLength = parseInt(loadData('ai_memory_length', 50), 10);
                 const limitedHistory = chatHistory.slice(-maxHistoryLength);
 
+                // ============ 【【【【【 V9.1 新增代码块 START 】】】】】 ============
+                // 在这里添加采集群聊记忆的逻辑
+                let groupChatContext = '';
+                // 检查 groupChatHistories 是否存在且是一个对象
+                if (typeof groupChatHistories === 'object' && groupChatHistories !== null) {
+                    const allGroupChats = Object.values(groupChatHistories);
+                    const relevantGroups = allGroupChats.filter(group => group.members && group.members.includes(characterId));
+
+                    if (relevantGroups.length > 0) {
+                        groupChatContext = relevantGroups.map(group => {
+                            const recentGroupHistory = group.history.slice(-20); // 获取每个群聊的最近20条消息
+                            if (recentGroupHistory.length === 0) return '';
+
+                            const historyText = recentGroupHistory.map(msg => {
+                                // 使用明确的代号，避免混淆
+                                const senderName = msg.senderId === 'user' ? 'USER' : (characters.find(c => c.id === msg.senderId)?.name || '未知');
+                                return `[${senderName}]: ${msg.content}`;
+                            }).join('\n');
+
+                            return `--- 在群聊 [${group.name}] 中的近期对话 ---\n${historyText}`;
+                        }).filter(Boolean).join('\n\n');
+                    }
+                }
+
+                if (!groupChatContext) {
+                    groupChatContext = '（最近没有参与任何群聊）';
+                }
+                // ================= 【 V9.1 新增代码块 END 】 =================
+
                 const contextPackage = {
                     character: character,
                     chatHistory: limitedHistory,
@@ -24098,7 +26272,8 @@ ${moment.image ? `配图描述: ${moment.image_desc}` : ''}
                     planContext: planContext,
                     // --- 在这里添加新属性 ---
                     callLogContext: callLogContext,
-                    memoryContext: memoryContext
+                    memoryContext: memoryContext,
+                    groupChatContext: groupChatContext // <-- 【【新增这一行】】
                     // -----------------------
                 };
 
@@ -26433,7 +28608,19 @@ function replyToComment(momentId, commentId, originalAuthor) {
             }
 
             currentOpenBook.ownerId = ownerId;
-            currentOpenBook.entries = (diaryData[ownerId] || []).slice().sort((a, b) => a.timestamp - b.timestamp);
+            
+            // V34.0 修复：统一数据源，从 characters 数组读取日记
+            let ownerObject;
+            if (ownerId === 'user') {
+                // 用户的日记逻辑我们还没动，暂时保持从旧的 diaryData 读取
+                ownerObject = { diaries: diaryData['user'] || [] };
+            } else {
+                // 对于AI角色，我们去 characters 数组里查找
+                ownerObject = characters.find(c => c.id === ownerId);
+            }
+            // 从找到的对象中获取 diaries 数组
+            currentOpenBook.entries = (ownerObject?.diaries || []).slice().sort((a, b) => a.timestamp - b.timestamp);
+            
             currentOpenBook.currentPage = currentOpenBook.entries.length > 0 ? currentOpenBook.entries.length - 1 : 0;
             currentOpenBook.isNotebook = false;
 
@@ -26579,10 +28766,20 @@ function replyToComment(momentId, commentId, originalAuthor) {
                 currentOpenBook.notebookData.lastModified = Date.now();
                 saveData('notebookData', notebookData);
             } else {
-                // 更新日记数据
-                if (currentOpenBook.ownerId) {
-                    diaryData[currentOpenBook.ownerId] = currentOpenBook.entries;
+                // 这是日记的逻辑
+                if (currentOpenBook.ownerId === 'user') {
+                    // 用户的日记，依然操作 diaryData
+                    diaryData['user'] = currentOpenBook.entries;
                     saveData('diaryData', diaryData);
+                } else {
+                    // AI 角色的日记，必须去修改 characters 数组
+                    const charIndex = characters.findIndex(c => c.id === currentOpenBook.ownerId);
+                    if (charIndex > -1) {
+                        // 找到角色，更新他的 diaries 列表
+                        characters[charIndex].diaries = currentOpenBook.entries;
+                        // 保存整个 characters 对象
+                        saveData('characters', characters); 
+                    }
                 }
             }
             
@@ -31157,6 +33354,10 @@ function addNewEventListeners() {
             await loadAllSavedData();
             await loadAllData();
             
+            // ====== 【【新增】】一次性数据迁移检查 ======
+            migrateOldDiaries(); // 在所有数据加载后，执行一次数据迁移检查
+            // ===========================================
+            
             // 初始化一些示例日记数据（如果还没有的话）
             if (Object.keys(diaryData).length === 0) {
                 diaryData.user = [];
@@ -31583,11 +33784,31 @@ function addNewEventListeners() {
             $('#font-settings-back-button').addEventListener('click', () => showScreen('main-settings-screen'));
             $('#heartbeat-settings-link').addEventListener('click', () => {
                 loadHeartbeatSettings();
+
+                // ====== 【【添加新代码】】 START ======
+                // 动态填充强制生成日记的角色选择框
+                const selectEl = document.getElementById('force-diary-character-select');
+                selectEl.innerHTML = '<option value="">-- 请选择一个角色 --</option>'; // 添加一个默认选项
+                characters.forEach(char => {
+                    const option = document.createElement('option');
+                    option.value = char.id;
+                    option.textContent = char.name;
+                    selectEl.appendChild(option);
+                });
+                // ====== 【【添加新代码结束】】 ======
+
                 showScreen('heartbeat-settings-screen');
             });
             $('#heartbeat-settings-back-button').addEventListener('click', () => showScreen('main-settings-screen'));
             $('#save-heartbeat-settings').addEventListener('click', saveHeartbeatSettings);
             $('#reset-heartbeat-settings').addEventListener('click', resetHeartbeatSettings);
+            
+            // ====== 【【添加强制生成日记按钮事件】】 ======
+            const forceDiaryBtn = document.getElementById('force-diary-trigger-btn');
+            if (forceDiaryBtn) {
+                forceDiaryBtn.addEventListener('click', forceGenerateDiary);
+            }
+            // =====================================
             
             // 朋友圈测试功能
             $('#test-moments-trigger').addEventListener('click', startMomentsTest);
@@ -31994,6 +34215,22 @@ function addNewEventListeners() {
                 };
                 // ============================================
 
+                // ====== 【新增】加载并设置"线上模式"开关的状态 ======
+                const onlineModeToggle = document.getElementById('online-mode-toggle');
+                const currentMode = chatModeSettings[currentChatCharacterId];
+
+                // 默认开启线上模式 (currentMode 未定义时为 true)
+                onlineModeToggle.checked = currentMode !== false;
+
+                // 为开关添加事件监听
+                onlineModeToggle.onchange = (e) => {
+                    const isOnlineMode = e.target.checked;
+                    chatModeSettings[currentChatCharacterId] = isOnlineMode;
+                    saveData('chatModeSettings', chatModeSettings); // 保存设置
+                    showMessageBox(isOnlineMode ? '线上模式已开启' : '自由模式已开启');
+                };
+                // ==========================================================
+
                 showScreen('wechat-options-screen');
             });
             $('#wechat-options-back-button').addEventListener('click', () => showScreen('wechat-chat-screen'));
@@ -32093,90 +34330,46 @@ function addNewEventListeners() {
             // 重置颜色和背景设置功能
             function resetColorsToDefault() {
                 if (!currentChatCharacterId) return;
-                
                 const isDarkMode = body.classList.contains('dark-mode');
-                
-                // 定义默认颜色值
-                const defaultColors = {
-                    user: '#374151',
-                    ai: isDarkMode ? '#4a4a4a' : '#e5e7eb'
-                };
-                
-                const defaultTextColors = {
-                    user: '#ffffff',
-                    ai: '#000000',
-                    other: isDarkMode ? '#ffffff' : '#000000'
-                };
-                
-                // 重置气泡颜色
+
+                // 1. 清除当前角色所有已保存的颜色和背景数据
                 if (chatBubbleColors[currentChatCharacterId]) {
                     delete chatBubbleColors[currentChatCharacterId];
-                } else {
-                    chatBubbleColors[currentChatCharacterId] = {};
+                    saveData('chatBubbleColors', chatBubbleColors);
                 }
-                
-                // 重置文字颜色
                 if (chatTextColors[currentChatCharacterId]) {
                     delete chatTextColors[currentChatCharacterId];
-                } else {
-                    chatTextColors[currentChatCharacterId] = {};
+                    saveData('chatTextColors', chatTextColors);
                 }
-                
-                // 重置聊天背景
-                try {
-                    const bgElement = getChatBackgroundElement();
-                    if (bgElement) {
-                        bgElement.style.backgroundImage = 'none';
-                        bgElement.style.backgroundColor = ''; // 清除背景色
-                    }
-                    
-                    // 重置聊天屏幕背景
-                    const chatScreen = $('#wechat-chat-screen');
-                    if (chatScreen) {
-                        chatScreen.style.backgroundColor = '';
-                        chatScreen.style.backgroundImage = 'none';
-                    }
-                    
-                    // 清除保存的背景数据
-                    const chatBackgrounds = loadData('chatBackgrounds', {});
-                    if (chatBackgrounds[currentChatCharacterId]) {
-                        delete chatBackgrounds[currentChatCharacterId];
-                        saveData('chatBackgrounds', chatBackgrounds);
-                    }
-                } catch (error) {
-                    console.warn('重置背景时出现错误:', error);
+                const chatBackgrounds = loadData('chatBackgrounds', {});
+                if (chatBackgrounds[currentChatCharacterId]) {
+                    delete chatBackgrounds[currentChatCharacterId];
+                    saveData('chatBackgrounds', chatBackgrounds);
                 }
-                
-                // 保存到本地存储
-                saveData('chatBubbleColors', chatBubbleColors);
-                saveData('chatTextColors', chatTextColors);
-                
-                // 更新颜色选择器的显示值
-                $('#user-bubble-color-picker').value = defaultColors.user;
-                $('#ai-bubble-color-picker').value = defaultColors.ai;
-                $('#user-text-color-picker').value = defaultTextColors.user;
-                $('#ai-text-color-picker').value = defaultTextColors.ai;
-                $('#other-text-color-picker').value = defaultTextColors.other;
-                
-                // 重新渲染聊天历史以应用默认颜色
+
+                // 2. 移除聊天背景
+                const bgElement = getChatBackgroundElement();
+                if (bgElement) bgElement.style.backgroundImage = '';
+                const chatScreen = $('#wechat-chat-screen');
+                 if(chatScreen){
+                    chatScreen.style.backgroundColor = '';
+                    chatScreen.classList.remove('has-custom-bg');
+                    statusBar.classList.remove('transparent-override');
+                 }
+
+                // 3. 【核心修改】调用新版函数并传入 null，它会自动应用当前主题的默认"其他"颜色
+                applyOtherTextColor(null);
+
+                // 4. 更新设置界面中的颜色选择器，使其显示为默认值
+                $('#user-bubble-color-picker').value = '#374151';
+                $('#ai-bubble-color-picker').value = isDarkMode ? '#2a2a2e' : '#e5e7eb';
+                $('#user-text-color-picker').value = '#ffffff';
+                $('#ai-text-color-picker').value = isDarkMode ? '#e5e7eb' : '#1f2937';
+                $('#other-text-color-picker').value = isDarkMode ? '#ffffff' : '#1f2937';
+
+                // 5. 重新渲染聊天历史以应用默认颜色
                 renderChatHistory();
-                
-                // 应用"其他"文字颜色
-                applyOtherTextColor(defaultTextColors.other);
-                
-                // 强制重新应用默认颜色到界面元素，确保完全重置
-                setTimeout(() => {
-                    console.log('强制重置其他文字颜色为:', defaultTextColors.other);
-                    applyOtherTextColor(defaultTextColors.other);
-                    
-                    // 额外确保颜色选择器显示正确的值
-                    const otherColorPicker = $('#other-text-color-picker');
-                    if (otherColorPicker) {
-                        otherColorPicker.value = defaultTextColors.other;
-                    }
-                }, 100);
-                
-                // 显示成功提示
+
                 showMessageBox('颜色和背景设置已重置为默认值！', 'success');
             }
 
@@ -33050,33 +35243,62 @@ function addNewEventListeners() {
                 const msgIndex = chatHistories[currentChatCharacterId].history.findIndex(m => String(m.timestamp) === timestamp);
                 if (msgIndex === -1 || chatHistories[currentChatCharacterId].history[msgIndex].type !== 'text') return;
 
-                const p = bubble.querySelector('p');
                 const originalText = chatHistories[currentChatCharacterId].history[msgIndex].content;
-                p.contentEditable = true;
-                p.focus();
+                const contentWrapper = bubble.parentElement;
 
-                const sel = window.getSelection();
-                sel.selectAllChildren(p);
-                sel.collapseToEnd();
+                // 1. 隐藏原始气泡
+                bubble.style.display = 'none';
 
-                const saveEdit = () => {
-                    const newText = p.innerText.trim();
-                    if (newText && newText !== originalText) {
-                        chatHistories[currentChatCharacterId].history[msgIndex].content = newText;
-                        saveData('chatHistories', chatHistories);
-                    }
-                    p.innerHTML = newText.replace(/(\*|_)(.*?)\1/g, '<i>$2</i>');
+                // 2. 创建一个临时的编辑区域
+                const editContainer = document.createElement('div');
+                const textarea = document.createElement('textarea');
+                textarea.className = 'turn-edit-textarea'; // 复用剧场功能的样式，非常合适
+                textarea.value = originalText;
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'edit-mode-actions'; // 复用剧场功能的样式
+
+                const saveBtn = document.createElement('button');
+                saveBtn.textContent = '保存';
+                saveBtn.className = 'edit-mode-btn save-btn';
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = '取消';
+                cancelBtn.className = 'edit-mode-btn cancel-btn';
+
+                actionsDiv.appendChild(cancelBtn);
+                actionsDiv.appendChild(saveBtn);
+
+                editContainer.appendChild(textarea);
+                editContainer.appendChild(actionsDiv);
+                contentWrapper.appendChild(editContainer);
+
+                textarea.focus();
+                textarea.style.height = 'auto';
+                textarea.style.height = (textarea.scrollHeight) + 'px';
+
+                // 3. 定义清理函数
+                const cleanup = () => {
+                    editContainer.remove();
+                    bubble.style.display = 'block';
                 };
 
-                p.addEventListener('blur', () => {
-                    p.contentEditable = false;
-                    saveEdit();
-                }, { once: true });
+                // 4. 绑定事件
+                saveBtn.onclick = () => {
+                    const newText = textarea.value.trim();
+                    if (newText && newText !== originalText) {
+                        // 保存数据
+                        chatHistories[currentChatCharacterId].history[msgIndex].content = newText;
+                        saveData('chatHistories', chatHistories);
 
-                p.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); p.blur(); }
-                    if (e.key === 'Escape') { p.innerText = originalText; p.blur(); }
-                });
+                        // 更新UI
+                        const lines = newText.replace(/(\*|_)(.*?)\1/g, '<i>$2</i>').split('\n').filter(line => line.trim() !== '');
+                        bubble.innerHTML = lines.length > 1 ? lines.map(line => `<p>${line}</p>`).join('') : `<p>${newText.replace(/(\*|_)(.*?)\1/g, '<i>$2</i>')}</p>`;
+                    }
+                    cleanup();
+                };
+
+                cancelBtn.onclick = cleanup;
             }
 
             async function retryMessageHandler(timestamp) {
@@ -39512,6 +41734,7 @@ async function generateNewLetter(characterId) {
 4.  **JSON输出**: 你的最终输出必须是一个单一、完整的JSON对象，格式如下，前后不能有任何多余的文字。
 5.  **文风模仿**: 在动笔前，请从下方的[文风库]中，选择一个最符合你当前心境和你人设的风格来模仿，让信件更具文学性和感染力。
 6.  **【【新增：称呼天条】】**: 在信件的称呼中，你必须根据我们之间的关系（参考[我的身份设定]）来决定如何称呼我。你可以称呼我的名字、昵称，或者使用"亲爱的"等。**绝对禁止、绝对不允许**在你的任何回复中使用任何形式的占位符，例如 {{user}} 或 [用户名]。
+7.  **篇幅要求**: 信件正文（不含称呼和落款）应在400-600字之间。既要有足够的内容深度来表达情感和细节，又要保持精炼不拖沓。
 
 # 文风库 (Style Library)
 * **简·奥斯汀 (Jane Austen) 风格**: 语言优雅、含蓄且充满智慧，带有敏锐的观察力，在描述日常小事中蕴含细腻的情感。
@@ -40712,6 +42935,744 @@ ${wordGuessState.isFirstClue ?
         
         // 在页面加载后初始化
         document.addEventListener('DOMContentLoaded', setupWordGuessGameEvents);
+
+        // ================== 【【新增 V2.2】】群聊气泡菜单核心功能 START ==================
+        let activeGroupMenu = null; // 用于追踪当前打开的群聊菜单
+
+        // 显示群聊气泡菜单
+        function showGroupBubbleMenu(bubble) {
+            if (bubble.closest('[data-no-menu="true"]')) return;
+
+            const wrapper = bubble.closest('.chat-message-wrapper');
+            let menu = wrapper.querySelector('.bubble-context-menu');
+
+            if (!menu) {
+                const template = document.getElementById('group-bubble-menu-template');
+                const menuClone = template.content.cloneNode(true);
+                wrapper.appendChild(menuClone);
+                menu = wrapper.querySelector('.bubble-context-menu');
+
+                menu.addEventListener('click', (e) => {
+                    const button = e.target.closest('.bubble-menu-button');
+                    if (button) {
+                        const action = button.dataset.action;
+                        const timestamp = wrapper.dataset.timestamp;
+                        handleGroupMenuAction(action, timestamp, bubble);
+                    }
+                });
+            }
+
+            const senderId = wrapper.dataset.sender;
+            const isAI = senderId !== 'user';
+
+            // 只有AI的消息才能重生成
+            menu.querySelector('[data-action="retry"]').style.display = isAI ? 'flex' : 'none';
+            // 只有文本消息才能编辑
+            const msg = groupChatHistories[currentGroupId].history.find(m => String(m.timestamp) === wrapper.dataset.timestamp);
+            menu.querySelector('[data-action="edit"]').style.display = msg.type === 'text' ? 'flex' : 'none';
+
+
+            // --- 定位逻辑 (复用私聊的成熟方案) ---
+            menu.classList.add('visible');
+            const menuRect = menu.getBoundingClientRect();
+            const bubbleRect = bubble.getBoundingClientRect();
+            const container = document.getElementById('group-chat-content');
+            const containerRect = container.getBoundingClientRect();
+            const headerHeight = document.querySelector('#group-chat-screen .app-header').offsetHeight;
+
+            let finalTop = bubble.offsetTop - menuRect.height - 8;
+            if ((bubbleRect.top - containerRect.top) - menuRect.height - 8 < headerHeight) {
+                finalTop = bubble.offsetTop + bubble.offsetHeight + 8;
+            }
+
+            let finalLeft;
+            const bubbleCenter = bubble.offsetLeft + bubble.offsetWidth / 2;
+            const idealLeft = bubbleCenter - menuRect.width / 2;
+
+            if (idealLeft < 0) {
+                finalLeft = bubble.offsetLeft;
+            } else if (idealLeft + menuRect.width > container.clientWidth) {
+                finalLeft = bubble.offsetLeft + bubble.offsetWidth - menuRect.width;
+            } else {
+                finalLeft = idealLeft;
+            }
+            if (finalLeft < 4) finalLeft = 4;
+            if (finalLeft + menuRect.width > container.clientWidth - 4) {
+                finalLeft = container.clientWidth - menuRect.width - 4;
+            }
+            
+            menu.style.top = `${finalTop}px`;
+            menu.style.left = `${finalLeft}px`;
+            menu.style.transform = 'translateX(0)';
+
+            activeGroupMenu = menu;
+        }
+
+        // 隐藏群聊气泡菜单
+        function hideGroupBubbleMenu() {
+            if (activeGroupMenu) {
+                activeGroupMenu.classList.remove('visible');
+                activeGroupMenu = null;
+            }
+        }
+
+        // 群聊多选模式相关变量
+        let isGroupMultiSelectMode = false;
+        let selectedGroupMessages = new Set();
+
+        // 处理群聊菜单的动作
+        function handleGroupMenuAction(action, timestamp, bubble) {
+            hideGroupBubbleMenu();
+            switch (action) {
+                case 'delete':
+                    // 复用现有的删除确认弹窗
+                    showDeleteConfirmation('group-message', timestamp, '这条消息');
+                    break;
+                case 'copy':
+                    copyGroupMessageHandler(timestamp);
+                    break;
+                case 'multiselect':
+                    enterGroupMultiSelectMode();
+                    break;
+                case 'edit':
+                    editGroupMessageHandler(timestamp, bubble);
+                    break;
+                case 'retry':
+                    retryGroupMessageHandler(timestamp);
+                    break;
+            }
+        }
+
+        // 进入群聊多选模式
+        function enterGroupMultiSelectMode() {
+            isGroupMultiSelectMode = true;
+            $('#group-chat-header-normal').classList.add('hidden');
+            $('#group-chat-header-multiselect').classList.remove('hidden');
+            $('#group-chat-header-multiselect').classList.add('flex');
+            updateGroupMultiSelectCount();
+        }
+
+        // 退出群聊多选模式
+        function exitGroupMultiSelectMode() {
+            isGroupMultiSelectMode = false;
+            selectedGroupMessages.clear();
+            $$('#group-chat-content .chat-message-wrapper.selected').forEach(el => el.classList.remove('selected'));
+            $('#group-chat-header-normal').classList.remove('hidden');
+            $('#group-chat-header-multiselect').classList.add('hidden');
+            $('#group-chat-header-multiselect').classList.remove('flex');
+        }
+
+        // 切换群聊消息选择状态
+        function toggleGroupMessageSelection(wrapper) {
+            const timestamp = wrapper.dataset.timestamp;
+            wrapper.classList.toggle('selected');
+            if (selectedGroupMessages.has(timestamp)) {
+                selectedGroupMessages.delete(timestamp);
+            } else {
+                selectedGroupMessages.add(timestamp);
+            }
+            updateGroupMultiSelectCount();
+        }
+
+        // 更新群聊多选计数
+        function updateGroupMultiSelectCount() {
+            const count = selectedGroupMessages.size;
+            $('#group-multiselect-count').textContent = `已选择 ${count} 项`;
+            $('#group-confirm-multiselect-btn').disabled = count === 0;
+        }
+        
+        // 复制群聊消息
+        function copyGroupMessageHandler(timestamp) {
+            const msg = groupChatHistories[currentGroupId]?.history.find(m => String(m.timestamp) === timestamp);
+            if (msg && msg.content) {
+                // 确保内容是字符串
+                const textToCopy = typeof msg.content === 'string' ? msg.content : String(msg.content);
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    showMessageBox('已复制');
+                }).catch((err) => {
+                    console.error('复制失败:', err);
+                    showMessageBox('复制失败');
+                });
+            } else {
+                showMessageBox('无法复制此消息');
+            }
+        }
+        
+        // 编辑群聊消息
+        function editGroupMessageHandler(timestamp, bubble) {
+            const msgIndex = groupChatHistories[currentGroupId].history.findIndex(m => String(m.timestamp) === timestamp);
+            if (msgIndex === -1) return;
+
+            const originalText = groupChatHistories[currentGroupId].history[msgIndex].content;
+            const contentWrapper = bubble.parentElement;
+
+            // 1. 隐藏原始气泡
+            bubble.style.display = 'none';
+
+            // 2. 创建编辑区域
+            const editContainer = document.createElement('div');
+            const textarea = document.createElement('textarea');
+            textarea.className = 'turn-edit-textarea';
+            textarea.value = originalText;
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'edit-mode-actions';
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = '保存';
+            saveBtn.className = 'edit-mode-btn save-btn';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = '取消';
+            cancelBtn.className = 'edit-mode-btn cancel-btn';
+
+            actionsDiv.appendChild(cancelBtn);
+            actionsDiv.appendChild(saveBtn);
+
+            editContainer.appendChild(textarea);
+            editContainer.appendChild(actionsDiv);
+            contentWrapper.appendChild(editContainer);
+
+            textarea.focus();
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight) + 'px';
+
+            // 3. 定义清理函数
+            const cleanup = () => {
+                editContainer.remove();
+                bubble.style.display = 'block';
+            };
+
+            // 4. 绑定事件
+            saveBtn.onclick = () => {
+                const newText = textarea.value.trim();
+                if (newText && newText !== originalText) {
+                    // 保存到正确的群聊历史
+                    groupChatHistories[currentGroupId].history[msgIndex].content = newText;
+                    saveData('groupChatHistories', groupChatHistories);
+
+                    // 更新UI
+                    const lines = newText.replace(/(\*|_)(.*?)\1/g, '<i>$2</i>').split('\n').filter(line => line.trim() !== '');
+                    bubble.innerHTML = lines.length > 1 ? lines.map(line => `<p>${line}</p>`).join('') : `<p>${newText.replace(/(\*|_)(.*?)\1/g, '<i>$2</i>')}</p>`;
+                }
+                cleanup();
+            };
+
+            cancelBtn.onclick = cleanup;
+        }
+        
+        // 重生成群聊AI消息
+        async function retryGroupMessageHandler(timestamp) {
+            const history = groupChatHistories[currentGroupId].history;
+            const msgIndex = history.findIndex(m => String(m.timestamp) === timestamp);
+
+            if (msgIndex > -1) {
+                // 找到需要重试的消息的 DOM 元素
+                const wrapperToRetry = document.querySelector(`#group-chat-content [data-timestamp="${timestamp}"]`);
+                if (wrapperToRetry) {
+                    wrapperToRetry.querySelector('.chat-message p').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                }
+
+                // 截取到该AI发言之前的所有历史记录作为上下文
+                const historyToRetry = history.slice(0, msgIndex);
+                
+                // 获取要重生成的AI的角色ID
+                const characterIdToRetry = history[msgIndex].senderId;
+                
+                // 从数据中移除这条及之后的所有消息（简单重试策略）
+                groupChatHistories[currentGroupId].history = historyToRetry;
+                saveData('groupChatHistories', groupChatHistories);
+                
+                // 从UI上移除这条及之后的所有消息
+                let nextSibling = wrapperToRetry.nextElementSibling;
+                while (nextSibling) {
+                    let toRemove = nextSibling;
+                    nextSibling = nextSibling.nextElementSibling;
+                    toRemove.remove();
+                }
+                wrapperToRetry.remove();
+
+                // 调用单个AI生成函数
+                const response = await generateAIResponseForCharacter(characterIdToRetry, groupChatHistories[currentGroupId]);
+                if (response) {
+                    // 处理并渲染新的回复
+                    processAndRenderGroupResponses(currentGroupId, [{ charId: characterIdToRetry, response }]);
+                }
+            }
+        }
+
+        // ================== 群聊气泡菜单核心功能 END ==================
+
+        // ====== 【【新增 V2.5】】群聊 @ 成员功能核心逻辑 START ======
+
+        /**
+         * 显示并填充 @ 成员列表
+         * @param {string} searchTerm - 用户在@后输入的搜索词
+         */
+        function showMentionsList(searchTerm = '') {
+            const listContainer = document.getElementById('group-chat-mentions-list');
+            if (!currentGroupId) {
+                console.warn('未选择群聊');
+                return;
+            }
+            if (!listContainer) {
+                console.warn('未找到@成员列表容器');
+                return;
+            }
+
+            const group = groupChatHistories[currentGroupId];
+            if (!group || !group.members) {
+                console.warn('群聊数据或成员列表不存在');
+                return;
+            }
+            
+            console.log('当前群聊ID:', currentGroupId, '成员数:', group.members.length);
+
+            // 1. 获取所有成员信息（包括用户自己）
+            const myName = loadData('perch_username') || '我';
+            const myAvatar = loadData('perch_avatar') || null;
+            const allMembers = [
+                { id: 'user', name: myName, avatar: myAvatar }, // 把"我"也加进去
+                ...group.members
+                    .filter(id => id !== 'user')
+                    .map(id => characters.find(c => c.id === id))
+                    .filter(Boolean) // 过滤掉可能不存在的角色
+            ];
+
+            // 2. 根据搜索词过滤成员
+            const filteredMembers = allMembers.filter(member =>
+                member.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            if (filteredMembers.length === 0) {
+                hideMentionsList();
+                return;
+            }
+
+            // 3. 渲染列表
+            listContainer.innerHTML = ''; // 清空旧列表
+            const ul = document.createElement('ul');
+            filteredMembers.forEach(member => {
+                const li = document.createElement('li');
+                li.className = 'mention-item';
+                li.dataset.mentionName = member.name;
+
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'avatar';
+                
+                // 使用您已有的 loadAvatar 函数来智能加载头像
+                loadAvatar(member.avatar, avatarDiv, member.name.charAt(0));
+
+                li.innerHTML = `<span class="name">${member.name}</span>`;
+                li.prepend(avatarDiv); // 将头像元素插入到最前面
+
+                // 4. 绑定点击事件
+                li.addEventListener('click', () => {
+                    insertMention(member.name);
+                });
+                ul.appendChild(li);
+            });
+
+            listContainer.appendChild(ul);
+            listContainer.classList.remove('hidden');
+            console.log('@ 成员列表已显示，共', filteredMembers.length, '个成员');
+        }
+
+        /**
+         * 隐藏 @ 成员列表
+         */
+        function hideMentionsList() {
+            const listContainer = document.getElementById('group-chat-mentions-list');
+            if (listContainer) {
+                listContainer.classList.add('hidden');
+                listContainer.innerHTML = '';
+            }
+        }
+
+        /**
+         * 将选择的成员名字插入到输入框
+         * @param {string} name - 要插入的名字
+         */
+        function insertMention(name) {
+            const input = document.getElementById('group-chat-input');
+            const currentValue = input.value;
+            
+            // 使用正则表达式替换掉 @触发词和搜索词
+            const newValue = currentValue.replace(/@\S*$/, `@${name} `);
+
+            input.value = newValue;
+            hideMentionsList();
+            input.focus(); // 将光标重新聚焦到输入框
+            
+            // 将光标移动到末尾
+            const end = input.value.length;
+            input.setSelectionRange(end, end);
+        }
+
+        /**
+         * 设置 @ 功能的所有事件监听器
+         */
+        function setupMentionEventListeners() {
+            const input = document.getElementById('group-chat-input');
+            if (!input) {
+                console.warn('群聊输入框未找到，无法绑定@成员事件');
+                return;
+            }
+
+            // 移除旧的监听器（如果存在）
+            if (input._mentionHandler) {
+                input.removeEventListener('input', input._mentionHandler);
+            }
+
+            // 创建新的监听器
+            input._mentionHandler = function() {
+                const text = input.value;
+                const cursorPos = input.selectionStart; // 获取光标位置
+                
+                // 寻找光标前的最后一个@
+                const lastAt = text.lastIndexOf('@', cursorPos - 1);
+
+                if (lastAt !== -1) {
+                    // 检查@后面是否是空格，如果是则不触发
+                    const charAfterAt = text.substring(lastAt + 1, lastAt + 2);
+                    if (charAfterAt === ' ' || charAfterAt === '@') {
+                         hideMentionsList();
+                         return;
+                    }
+                    
+                    // 提取搜索词
+                    const searchTerm = text.substring(lastAt + 1, cursorPos);
+                    // 确保搜索词中没有空格
+                    if (!/\s/.test(searchTerm)) {
+                        console.log('触发@成员列表，搜索词:', searchTerm);
+                        showMentionsList(searchTerm);
+                        return;
+                    }
+                }
+                
+                hideMentionsList();
+            };
+
+            // 绑定新的监听器
+            input.addEventListener('input', input._mentionHandler);
+
+            // 点击其他地方时隐藏列表（只绑定一次）
+            if (!document._mentionClickHandlerBound) {
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('#group-chat-footer')) {
+                        hideMentionsList();
+                    }
+                });
+                document._mentionClickHandlerBound = true;
+            }
+            
+            const sendButton = document.getElementById('send-group-chat-button');
+            if(sendButton && !sendButton._mentionClickHandlerBound) {
+                sendButton.addEventListener('click', hideMentionsList);
+                sendButton._mentionClickHandlerBound = true;
+            }
+            
+            console.log('@ 成员功能事件监听器已激活');
+        }
+
+        // ====== 群聊 @ 成员功能核心逻辑 END ======
+
+        // ====== 【【新增 V2.0】】群聊事件绑定 START ======
+        function setupGroupChatEvents() {
+            const groupChatIcon = document.querySelector('.app-icon[data-app-name="GroupChat"]');
+            if (groupChatIcon) {
+                groupChatIcon.addEventListener('click', () => handleGroupChatIconClick());
+            }
+            
+            // 群聊列表界面
+            const groupChatListBackButton = document.getElementById('group-chat-list-back-button');
+            if (groupChatListBackButton) {
+                groupChatListBackButton.addEventListener('click', () => showScreen('home-screen'));
+            }
+            
+            const addNewGroupChatButton = document.getElementById('add-new-group-chat-button');
+            if (addNewGroupChatButton) {
+                addNewGroupChatButton.addEventListener('click', () => openGroupCreationModal(false)); // false表示非初次创建
+            }
+
+            // 群聊聊天室界面
+            const groupChatBackButton = document.getElementById('group-chat-back-button');
+            if (groupChatBackButton) {
+                groupChatBackButton.addEventListener('click', () => {
+                    currentGroupId = null; // 退出群聊时，清空当前群聊ID
+                    renderGroupChatList();
+                    showScreen('group-chat-list-screen');
+                });
+            }
+            
+            const groupChatSettingsButton = document.getElementById('group-chat-settings-button');
+            if (groupChatSettingsButton) {
+                groupChatSettingsButton.addEventListener('click', () => openGroupChatSettings());
+            }
+            
+            const sendGroupChatButton = document.getElementById('send-group-chat-button');
+            if (sendGroupChatButton) {
+                sendGroupChatButton.addEventListener('click', handleSendGroupMessage);
+            }
+            
+            const receiveGroupChatButton = document.getElementById('receive-group-chat-button');
+            if (receiveGroupChatButton) {
+                receiveGroupChatButton.addEventListener('click', handleReceiveGroupMessage);
+            }
+            
+            const groupChatInput = document.getElementById('group-chat-input');
+            if (groupChatInput) {
+                groupChatInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendGroupMessage();
+                    }
+                });
+            }
+            
+            // 首次创建弹窗
+            const cancelGroupCreationBtn = document.getElementById('cancel-group-creation-btn');
+            if (cancelGroupCreationBtn) {
+                cancelGroupCreationBtn.addEventListener('click', () => {
+                    // 只有在非首次创建时，取消按钮才有效
+                    const existingGroups = Object.keys(groupChatHistories);
+                    if (existingGroups.length > 0) {
+                        document.getElementById('create-group-chat-modal').classList.remove('visible');
+                    } else {
+                        // 如果是首次，取消=返回主屏幕
+                        showScreen('home-screen');
+                        document.getElementById('create-group-chat-modal').classList.remove('visible');
+                    }
+                });
+            }
+            
+            const confirmGroupCreationBtn = document.getElementById('confirm-group-creation-btn');
+            if (confirmGroupCreationBtn) {
+                confirmGroupCreationBtn.addEventListener('click', createAndInitializeGroup);
+            }
+            
+            // 群聊设置弹窗
+            const closeGroupChatSettingsModal = document.getElementById('close-group-chat-settings-modal');
+            if (closeGroupChatSettingsModal) {
+                closeGroupChatSettingsModal.addEventListener('click', () => {
+                    document.getElementById('group-chat-settings-modal').classList.remove('visible');
+                });
+            }
+            
+            const saveGroupChatSettingsBtn = document.getElementById('save-group-chat-settings-btn');
+            if (saveGroupChatSettingsBtn) {
+                saveGroupChatSettingsBtn.addEventListener('click', () => saveGroupChatSettings());
+            }
+            
+            // 【新增】删除群聊按钮
+            const deleteGroupChatBtn = document.getElementById('delete-group-chat-btn');
+            if (deleteGroupChatBtn) {
+                deleteGroupChatBtn.addEventListener('click', () => deleteGroupChat());
+            }
+            
+            // ====== 【【新增】】群聊头像上传事件绑定 START ======
+            document.getElementById('group-avatar-preview').addEventListener('click', () => {
+                document.getElementById('group-avatar-input').click();
+            });
+
+            document.getElementById('group-avatar-input').addEventListener('change', async (e) => {
+                if (!currentGroupId) return; // 安全检查
+                const file = e.target.files[0];
+                if (file) {
+                    // 复用您稳定可靠的 handleImageUpload 函数来处理图片
+                    const imageId = await handleImageUpload(e.target, null, null, { 
+                        compression: { maxWidth: 256, maxHeight: 256 } // 头像尺寸
+                    });
+                    
+                    if (imageId) {
+                        // 将新头像的ID保存到群聊数据中
+                        groupChatHistories[currentGroupId].avatar = imageId;
+                        saveData('groupChatHistories', groupChatHistories);
+
+                        // 实时更新设置界面的预览图
+                        const preview = document.getElementById('group-avatar-preview');
+                        const blob = await getImageFromDB(imageId);
+                        if (preview && blob) {
+                            preview.style.backgroundImage = `url(${URL.createObjectURL(blob)})`;
+                            preview.innerHTML = ''; // 清空相机图标
+                        }
+                        
+                        showMessageBox('群头像已更新');
+                        // 刷新群聊列表，让头像立即显示
+                        renderGroupChatList();
+                    }
+                }
+                e.target.value = ''; // 清空，以便再次选择同一张图片
+            });
+            // ====== 群聊头像上传事件绑定 END ======
+
+            // ====== 【新增】群聊背景设置事件绑定 START ======
+            const changeGroupBgBtn = document.getElementById('change-group-bg-btn');
+            const removeGroupBgBtn = document.getElementById('remove-group-bg-btn');
+            const groupChatBgInput = document.getElementById('group-chat-bg-input');
+
+            if (changeGroupBgBtn) {
+                changeGroupBgBtn.addEventListener('click', () => {
+                    if (groupChatBgInput) groupChatBgInput.click();
+                });
+            }
+
+            if (groupChatBgInput) {
+                groupChatBgInput.addEventListener('change', async (e) => {
+                    if (!currentGroupId) return;
+                    const file = e.target.files[0];
+                    if (file) {
+                        try {
+                            const imageId = await handleImageUpload(e.target, null, null, {
+                                compression: { maxWidth: 1920, maxHeight: 1920, quality: 0.9 }
+                            });
+
+                            if (imageId) {
+                                groupChatBackgrounds[currentGroupId] = imageId;
+                                saveData('groupChatBackgrounds', groupChatBackgrounds);
+
+                                // 实时预览效果
+                                const blob = await getImageFromDB(imageId);
+                                if (blob) {
+                                    const chatScreen = document.getElementById('group-chat-screen');
+                                    const bgElement = getGroupChatBackgroundElement();
+                                    const objectURL = URL.createObjectURL(blob);
+                                    bgElement.style.backgroundImage = `url(${objectURL})`;
+                                    chatScreen.classList.add('has-custom-bg');
+                                    document.getElementById('status-bar').classList.add('transparent-override');
+                                }
+                                showMessageBox('群聊背景已更换');
+                            }
+                        } catch (error) {
+                            console.error("处理群聊背景失败:", error);
+                            showMessageBox('背景图片处理失败');
+                        }
+                    }
+                    e.target.value = ''; // 重置输入，以便再次选择相同文件
+                });
+            }
+
+            if (removeGroupBgBtn) {
+                removeGroupBgBtn.addEventListener('click', () => {
+                    if (!currentGroupId) return;
+
+                    // 从数据中移除
+                    delete groupChatBackgrounds[currentGroupId];
+                    saveData('groupChatBackgrounds', groupChatBackgrounds);
+
+                    // 实时移除效果
+                    const chatScreen = document.getElementById('group-chat-screen');
+                    const bgElement = getGroupChatBackgroundElement();
+                    if (bgElement) bgElement.style.backgroundImage = '';
+                    chatScreen.classList.remove('has-custom-bg');
+                    document.getElementById('status-bar').classList.remove('transparent-override');
+
+                    showMessageBox('群聊背景已移除');
+                });
+            }
+            // ====== 群聊背景设置事件绑定 END ======
+
+            // ====== 【【新增】】群聊用户头像点击更换事件 ======
+            const groupUserAvatarInput = document.getElementById('group-user-avatar-input');
+            if (groupUserAvatarInput) {
+                groupUserAvatarInput.addEventListener('change', (e) => {
+                    if (e.target.files && e.target.files[0] && currentGroupId) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const avatarData = event.target.result;
+                            
+                            // 保存到群组专属的用户头像存储
+                            if (!userAvatars[currentGroupId]) {
+                                userAvatars[currentGroupId] = {};
+                            }
+                            userAvatars[currentGroupId] = avatarData;
+                            saveData('userAvatars', userAvatars);
+                            
+                            // 更新当前群聊中所有用户消息的头像
+                            const chatArea = document.getElementById('group-chat-content');
+                            if (chatArea) {
+                                const userAvatarElements = chatArea.querySelectorAll('.chat-message-wrapper.sent .chat-avatar');
+                                userAvatarElements.forEach(avatar => {
+                                    loadAvatar(avatarData, avatar, '我', false);
+                                });
+                            }
+                            
+                            showMessageBox('群聊用户头像已更新');
+                        };
+                        reader.readAsDataURL(e.target.files[0]);
+                    }
+                    e.target.value = ''; // 清空，以便再次选择同一张图片
+                });
+            }
+            // ====== 群聊用户头像点击更换事件 END ======
+
+            // ====== 【【新增 V2.2】】群聊气泡菜单事件委托 ======
+            const groupChatContent = document.getElementById('group-chat-content');
+            if (groupChatContent) {
+                groupChatContent.addEventListener('click', (e) => {
+                    const wrapper = e.target.closest('.chat-message-wrapper');
+
+                    // 点击用户头像，触发更换头像
+                    const avatar = e.target.closest('.chat-message-wrapper.sent .chat-avatar');
+                    if (avatar && !isGroupMultiSelectMode) {
+                        e.stopPropagation();
+                        const groupUserAvatarInput = document.getElementById('group-user-avatar-input');
+                        if (groupUserAvatarInput) {
+                            groupUserAvatarInput.click();
+                        }
+                        return;
+                    }
+
+                    // 如果在多选模式，点击消息切换选择状态
+                    if (isGroupMultiSelectMode) {
+                        if (wrapper) toggleGroupMessageSelection(wrapper);
+                        return;
+                    }
+
+                    const bubble = e.target.closest('.chat-message');
+                    if (bubble) {
+                        e.stopPropagation();
+                        // 隐藏可能存在的其他菜单
+                        if (activeGroupMenu && !activeGroupMenu.isSameNode(bubble.parentNode.querySelector('.bubble-context-menu'))) {
+                           hideGroupBubbleMenu();
+                        }
+                        showGroupBubbleMenu(bubble);
+                    } else {
+                        // 点击空白区域，隐藏菜单
+                        hideGroupBubbleMenu();
+                    }
+                });
+            }
+
+            // ====== 群聊多选模式按钮事件绑定 ======
+            const groupCancelMultiselectBtn = document.getElementById('group-cancel-multiselect-btn');
+            if (groupCancelMultiselectBtn) {
+                groupCancelMultiselectBtn.addEventListener('click', exitGroupMultiSelectMode);
+            }
+
+            const groupConfirmMultiselectBtn = document.getElementById('group-confirm-multiselect-btn');
+            if (groupConfirmMultiselectBtn) {
+                groupConfirmMultiselectBtn.addEventListener('click', () => {
+                    if (selectedGroupMessages.size > 0) {
+                        showDeleteConfirmation('group-multi-message', null, `${selectedGroupMessages.size}条消息`);
+                    }
+                });
+            }
+            // ================================================
+            
+            // 【【V2.5新增】】激活 @ 成员功能的事件监听
+            setupMentionEventListeners();
+            
+            // 【新增】绑定重置外观按钮
+            const resetAppearanceBtn = document.getElementById('reset-group-appearance-btn');
+            if (resetAppearanceBtn) {
+                resetAppearanceBtn.addEventListener('click', resetGroupAppearance);
+            }
+        }
+        
+        // 在页面加载后初始化群聊事件
+        document.addEventListener('DOMContentLoaded', setupGroupChatEvents);
+        // ====== 群聊事件绑定 END ======
 
     </script>
 
