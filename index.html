@@ -14600,6 +14600,7 @@
             <div id="character-select-screen" class="app-screen-view flex-col hidden">
                 <div class="app-header">
                     <button id="character-select-back-button" class="app-header-btn"><i class="fas fa-chevron-left"></i></button>
+                    <h3 class="app-header-title">选择角色</h3>
                     <div class="w-8"></div>
                 </div>
                 <div id="character-select-list-container" class="flex-1 overflow-y-auto p-2 space-y-2">
@@ -17673,58 +17674,140 @@
 
         // ================== AI 调用核心 ==================
         async function callAI(systemPrompt, userPrompt = "请根据你的指令，开始行动。") {
-            // 新增：API总开关检查
-            const isApiEnabled = loadData('api_enabled', false); // 默认关闭
+            // API总开关检查
+            const isApiEnabled = loadData('api_enabled', false);
             if (!isApiEnabled) {
                 console.warn("API 连接已关闭。AI 调用被阻止。");
-                // 延迟显示提示，避免在后台自动触发时打扰用户
                 if (document.body.classList.contains('fullscreen-active') || !document.hidden) {
                      showMessageBox("API 连接已关闭，请在设置中开启。");
                 }
-                return null; // 直接中断函数，不消耗Token
+                throw new Error("API 连接已在设置中被禁用"); // 抛出错误
             }
             
             const apiSettings = loadData('api_settings');
             if (!apiSettings || !apiSettings.url || !apiSettings.key || !apiSettings.model) {
                 console.error("AI调用失败：API未配置。");
-                return null; 
+                throw new Error("API 未配置"); // 抛出错误
             }
 
-            const finalApiUrl = `${apiSettings.url.replace(/\/+$/, '')}/chat/completions`;
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiSettings.key}`
-            };
+            // API类型检测
+            const apiType = getApiType(apiSettings.url);
+            const needsProxyMode = needsProxy(apiSettings.url);
+            
+            console.log(`📡 检测到API类型: ${apiType}`);
+            if (needsProxyMode) {
+                console.warn('⚠️ 检测到官方API地址，可能因CORS限制无法直连。');
+            }
 
-            const requestBody = JSON.stringify({
-                model: apiSettings.model,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userPrompt }
-                ],
-                max_tokens: apiSettings.model.includes('o1') ? 32768 : 4000,
-                temperature: 0.8
-            });
+            const isGoogleApi = apiSettings.url.includes('googleapis.com');
+            let requestBody;
+            let finalApiUrlForFetch, headersForFetch;
 
             try {
-                const response = await fetch(finalApiUrl, {
+                if (isGoogleApi) {
+                    // ==========================================
+                    // 【【【【【 核心修复：Gemini API 逻辑 】】】】】
+                    // ==========================================
+                    finalApiUrlForFetch = `${apiSettings.url.replace(/\/+$/, '')}/${apiSettings.model}:generateContent?key=${apiSettings.key}`;
+                    headersForFetch = { 'Content-Type': 'application/json' };
+                    
+                    // 【修正】'user' turn 应该只包含 userPrompt
+                    const contents = [
+                        { role: 'user', parts: [{ text: userPrompt }] }
+                    ];
+
+                    // 【修正】systemInstruction 应该只包含 systemPrompt
+                    const systemInstruction = { parts: [{ text: systemPrompt }] };
+
+                    // 添加安全设置
+                    const safetySettings = [
+                        { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE" },
+                        { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE" },
+                        { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE" },
+                        { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE" }
+                    ];
+                    
+                    requestBody = JSON.stringify({
+                        contents: contents,
+                        systemInstruction: systemInstruction,
+                        safetySettings: safetySettings
+                    });
+                    
+                } else { 
+                    // ==========================================
+                    // 【【【【【 OpenAI 兼容 API 逻辑 (此部分原先正确) 】】】】】
+                    // ==========================================
+                    finalApiUrlForFetch = `${apiSettings.url.replace(/\/+$/, '')}/chat/completions`;
+                    headersForFetch = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiSettings.key}` };
+                    
+                    const messages = [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userPrompt }
+                    ];
+                    
+                    requestBody = JSON.stringify({ 
+                        model: apiSettings.model, 
+                        messages: messages,
+                        temperature: 0.7,
+                        top_p: 0.9,
+                        presence_penalty: 0.6,
+                        frequency_penalty: 0.5
+                    });
+                }
+                
+                // --- 统一的 Fetch 和错误处理 ---
+                console.log('📡 发送API请求到:', finalApiUrlForFetch);
+                const response = await fetch(finalApiUrlForFetch, {
                     method: 'POST',
-                    headers: headers,
+                    headers: headersForFetch,
                     body: requestBody
                 });
 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error(`API请求失败: ${response.status}`, errorText);
-                    return null;
+                    
+                    let errorMessage = `API请求失败: ${response.status}`;
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        if(errorJson.error && errorJson.error.message) {
+                            errorMessage = errorJson.error.message;
+                        }
+                    } catch(e) {
+                        errorMessage = errorText.substring(0, 150) + '...';
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const result = await response.json();
-                return result.choices[0].message.content.trim();
+                console.log('✅ API响应成功:', result);
+                
+                let aiMessage;
+                if (isGoogleApi) {
+                    if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
+                        aiMessage = result.candidates[0].content.parts[0].text.trim();
+                    } else {
+                        console.error("Google API返回了成功响应，但内容为空或结构不符:", result);
+                        throw new Error("AI 返回了空内容 (Google)");
+                    }
+                } else {
+                    if (result.choices && result.choices[0].message && (result.choices[0].message.content !== null && result.choices[0].message.content !== undefined)) {
+                        aiMessage = result.choices[0].message.content.trim();
+                    } else {
+                        console.error("OpenAI API返回了成功响应，但内容为空或结构不符:", result);
+                        throw new Error("AI 返回了空内容 (OpenAI)");
+                    }
+                }
+
+                if (aiMessage === "") {
+                    throw new Error("AI 返回了空字符串");
+                }
+                
+                return aiMessage;
 
             } catch (error) {
                 console.error("调用AI时发生网络或逻辑错误:", error);
-                return null;
+                throw error; // 向上抛出原始错误
             }
         }
 
@@ -18484,20 +18567,99 @@ function getChatBackgroundElement() {
 
             try {
                 const aiResponse = await callAI(systemPrompt, "根据你的设定和近期活动，生成以下应用的数据。");
-                if (aiResponse) {
-                    // 尝试提取 JSON 数组
-                    const jsonMatch = aiResponse.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-                    if (jsonMatch) {
-                        const parsedData = JSON.parse(jsonMatch[0]);
-                        if (icon) icon.classList.remove('animate-spin');
-                        showCharPhoneMessageBox('刷新完成');
-                        return parsedData; // 返回解析后的数组
-                    } else {
-                        throw new Error("AI 返回的不是有效的 JSON 数组格式");
-                    }
-                } else {
+                if (!aiResponse) {
                     throw new Error("AI 未返回任何内容");
                 }
+
+                let parsedData = null; // 用于存放最终解析的数据
+                
+                // 尝试方法1: 匹配 ```json ... ```
+                const jsonMatch = aiResponse.match(/```json([\s\S]*?)```/);
+                if (jsonMatch) {
+                    try {
+                        parsedData = JSON.parse(jsonMatch[1].trim());
+                        console.log("成功解析 JSON (方法1)");
+                    } catch (e) {
+                        console.warn("方法1解析失败:", e.message);
+                    }
+                }
+                
+                // 尝试方法2: 匹配 ``` ... ``` (不带json标记)
+                if (!parsedData) {
+                    const codeMatch = aiResponse.match(/```([\s\S]*?)```/);
+                    if (codeMatch) {
+                        try {
+                            parsedData = JSON.parse(codeMatch[1].trim());
+                            console.log("成功解析 JSON (方法2)");
+                        } catch (e) {
+                            console.warn("方法2解析失败:", e.message);
+                        }
+                    }
+                }
+                
+                // 尝试方法3: 直接解析整个返回内容
+                if (!parsedData) {
+                    try {
+                        parsedData = JSON.parse(aiResponse.trim());
+                        console.log("成功解析 JSON (方法3)");
+                    } catch (e) {
+                        console.warn("方法3解析失败:", e.message);
+                    }
+                }
+                
+                // 尝试方法4: 查找第一个 { 或 [ 到最后一个 } 或 ] (兼容对象和数组)
+                if (!parsedData) {
+                    const firstBrace = aiResponse.indexOf('{');
+                    const lastBrace = aiResponse.lastIndexOf('}');
+                    const firstBracket = aiResponse.indexOf('[');
+                    const lastBracket = aiResponse.lastIndexOf(']');
+                    
+                    let start = -1, end = -1;
+                    
+                    // 优先检查数组，因为这个函数期望返回数组
+                    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+                        start = firstBracket;
+                        end = lastBracket;
+                        // 检查对象是否包含了这个数组 (例如 { "data": [...] } )
+                        if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < start && lastBrace > end) {
+                            start = firstBrace; // 如果是对象包裹数组，则以对象为准
+                            end = lastBrace;
+                        }
+                    } else if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                        // 如果没有数组，再检查对象
+                        start = firstBrace;
+                        end = lastBrace;
+                    }
+
+                    if (start !== -1) {
+                        try {
+                            const jsonStr = aiResponse.substring(start, end + 1);
+                            parsedData = JSON.parse(jsonStr);
+                            console.log("成功解析 JSON (方法4)");
+                        } catch (e) {
+                            console.warn("方法4解析失败:", e.message, "截获字符串:", jsonStr);
+                        }
+                    }
+                }
+                
+                // 最终检查：如果AI返回了对象（如{"data": [...]}），尝试提取其中的数组
+                if (parsedData && !Array.isArray(parsedData) && typeof parsedData === 'object') {
+                    const arrayKey = Object.keys(parsedData).find(k => Array.isArray(parsedData[k]));
+                    if (arrayKey) {
+                        parsedData = parsedData[arrayKey]; // 提取这个数组
+                    }
+                }
+
+                // 确保最终得到的是一个数组
+                if (parsedData && Array.isArray(parsedData)) {
+                    if (icon) icon.classList.remove('animate-spin');
+                    showCharPhoneMessageBox('刷新完成');
+                    return parsedData; // 返回解析后的数组
+                } else {
+                    console.error("AI原始返回内容:", aiResponse); // 打印原始错误信息
+                    throw new Error("AI 返回的不是有效的 JSON 数组格式");
+                }
+
             } catch (error) {
                 console.error(`为 App [${appName}] 生成数据失败:`, error);
                 if (icon) icon.classList.remove('animate-spin');
@@ -18936,36 +19098,114 @@ function getChatBackgroundElement() {
             });
         }
 
-        // 编辑项目处理函数
+        // 编辑项目处理函数 (V2.0 - 弹窗式编辑)
         function handleEditItem(characterId, appName, itemId) {
             const appData = loadCharacterAppData(characterId, appName);
             const item = appData.find(i => i.id === itemId);
             if (!item) return;
 
-            // 找到主要字段
-            const mainFieldKey = item.title ? 'title' : item.name ? 'name' : item.location ? 'location' : item.query ? 'query' : Object.keys(item).find(k => k !== 'id');
-            const mainField = item[mainFieldKey] || '';
+            // 1. 创建一个容器来存放所有的输入框
+            const formContent = document.createElement('div');
+            formContent.className = 'space-y-4'; // 使用 Tailwind CSS 增加间距
+
+            // 2. 动态为 *所有* 字符串/数字类型的字段创建输入框
+            //    (排除 'id' 和 'timestamp' 这种不应编辑的字段)
+            const excludedKeys = ['id', 'timestamp', 'photo_url', 'album', 'type', 'status', 'locked', 'platform'];
+            const fieldElements = {}; // 用来存储 input/textarea 元素，以便后续取值
+
+            Object.keys(item).forEach(key => {
+                // 只编辑非排除的、且值为字符串或数字的字段
+                if (!excludedKeys.includes(key) && (typeof item[key] === 'string' || typeof item[key] === 'number')) {
+                    
+                    const fieldWrapper = document.createElement('div');
+                    const label = document.createElement('label');
+                    label.className = 'block text-sm font-medium mb-1'; // 复用你已有的CSS
+                    label.textContent = key; // (例如: 'title', 'content', 'reason')
+                    
+                    let inputElement;
+                    const value = item[key] || '';
+
+                    // 3. 智能判断是使用 <input> 还是 <textarea>
+                    //    (如果字段名含 'content', 'reason', 'preview', 'description', 'detail' 或文本很长，就用 textarea)
+                    const isTextArea = /content|reason|preview|description|detail|summary/i.test(key) || value.length > 80;
+
+                    if (isTextArea) {
+                        inputElement = document.createElement('textarea');
+                        // 复用你已有的 .form-textarea 样式
+                        inputElement.className = 'form-textarea w-full h-32 resize-none'; 
+                        inputElement.value = value;
+                    } else {
+                        inputElement = document.createElement('input');
+                        inputElement.type = 'text';
+                        // 复用你已有的 .form-input 样式
+                        inputElement.className = 'form-input w-full'; 
+                        inputElement.value = value;
+                    }
+
+                    inputElement.id = `edit-field-${key}`;
+                    fieldElements[key] = inputElement; // 存储元素引用
+
+                    fieldWrapper.appendChild(label);
+                    fieldWrapper.appendChild(inputElement);
+                    formContent.appendChild(fieldWrapper);
+                }
+            });
+
+            // 4. 使用我们强大的 `createCharacterPhoneModal` 来创建弹窗
+            const modalId = `edit-modal-${itemId}`;
+            const editModal = createCharacterPhoneModal({
+                id: modalId,
+                title: '编辑条目',
+                content: formContent, // 把我们创建的表单放进去
+                buttons: [
+                    {
+                        text: '取消',
+                        type: 'secondary',
+                        onClick: (modal) => closeCharacterPhoneModal(modal.id)
+                    },
+                    {
+                        text: '保存',
+                        type: 'primary',
+                        onClick: (modal) => {
+                            // 5. "保存" 按钮的逻辑
+                            let hasChanged = false;
+                            
+                            // 遍历我们创建的输入框，把新值写回 item 对象
+                            Object.keys(fieldElements).forEach(key => {
+                                const newValue = fieldElements[key].value; // 保留首尾空格，尊重用户的输入
+                                if (item[key] !== newValue) {
+                                    item[key] = newValue;
+                                    hasChanged = true;
+                                }
+                            });
+
+                            if (hasChanged) {
+                                upsertCharacterAppDataItem(characterId, appName, item);
+                                
+                                // 重新渲染列表
+                                const renderFunctionName = `render${appName}List`;
+                                if (typeof window[renderFunctionName] === 'function') {
+                                    window[renderFunctionName](characterId);
+                                } else {
+                                    renderGenericList(characterId, appName, loadCharacterAppData(characterId, appName));
+                                }
+                                showMessageBox('已保存更改');
+                            }
+                            
+                            closeCharacterPhoneModal(modal.id);
+                        }
+                    }
+                ]
+            });
+
+            // 6. 显示弹窗
+            showCharacterPhoneModal(modalId);
             
-            const newValue = prompt(`编辑 "${mainFieldKey}":`, mainField);
-            if (newValue !== null && newValue.trim() !== mainField) {
-                item[mainFieldKey] = newValue.trim();
-                
-                // 如果有 content 字段，也允许编辑
-                if (item.content) {
-                    const newContent = prompt(`编辑内容:`, item.content);
-                    if (newContent !== null) item.content = newContent.trim();
-                }
-                
-                upsertCharacterAppDataItem(characterId, appName, item);
-                
-                // 重新渲染列表
-                const renderFunctionName = `render${appName}List`;
-                if (typeof window[renderFunctionName] === 'function') {
-                    window[renderFunctionName](characterId);
-                } else {
-                    renderGenericList(characterId, appName, loadCharacterAppData(characterId, appName));
-                }
-                showMessageBox('已保存更改');
+            // 7. （可选）聚焦到第一个输入框
+            const firstInput = formContent.querySelector('input, textarea');
+            if (firstInput) {
+                firstInput.focus();
+                firstInput.select();
             }
         }
 
@@ -19221,15 +19461,38 @@ function getChatBackgroundElement() {
             const context = gatherAIContext(characterId);
             const userName = loadData('perch_username') || '用户';
 
+            // 【V3 版 - 强关联剧本式】微信列表生成 Prompt
             const systemPrompt = `
-身份：你现在就是角色【${character.name}】(${character.persona})。
+身份：你现在就是角色【${character.name}】({${character.persona}})。
 任务：模拟你手机微信里的联系人列表和与部分联系人的近期聊天记录。
-要求：
-- 联系人: 生成 5-10 个你可能认识或联系的人 (必须包含【${userName}】)。联系人要符合你的社交圈和[上下文信息]。
-- 聊天记录: 为每个联系人（包括【${userName}】）生成 5-10 条符合你们关系的、非常简短且口语化的近期聊天记录（有来有回）。聊天内容要能体现你们的关系、你的性格以及近期的事件（参考[上下文信息]）。
-JSON 输出: 严格按以下 JSON 格式输出，不要包含任何其他文字。
 
-JSON 格式：
+要求：
+
+- 【【【 绝对核心：剧本化与关联性 】】】: 
+  - 这是"查手机"功能的灵魂。你被【【绝对禁止】】生成"吃饭没"、"在干嘛"、"晚安"这种无意义的日常寒暄。
+  - 你必须为每个联系人生成一段【有故事性、有张力】的对话片段（5-10条）。
+  - **核心要求**: 每一段聊天记录都应该像是一个微型剧本，【暴露出一个信息点、一个秘密、一种情绪或一个正在进行的事件】。
+
+- 【【 与 ${userName} 的聊天 (主线剧情) 】】:
+  - 这段记录【【必须是你近期与 ${userName} 真实聊天的直接延续或侧面反映】】。
+  - 你必须分析 [最近聊天记录(与${userName})]，并基于此创作一段【【后续对话】】或【【相关的内心挣扎】】。
+  - **剧本示例**:
+    - **如果你们刚吵完架**: 你的聊天记录里可能是正在向你的朋友A吐槽这件事，或者正在给 ${userName} 编辑一段没有发出去的道歉草稿。
+    - **如果你们刚很暧昧**: 你的聊天记录里可能是正在搜索 '如何更进一步'，或者在和闺蜜分享你的喜悦。
+    - **如果 ${userName} 提到了一个地点**: 你的聊天记录里可能是正在给旅行社发消息，询问去那个地点的机票。
+
+- 【【 与其他联系人的聊天 (B面故事) 】】:
+  - 这些记录也【必须】与你的主线生活（即与 ${userName} 的互动）相关。它们是 ${userName} 看不到的【【B面故事】】。
+  - **剧本示例**:
+    - **与 ${userName} 吵架后** -> 你（角色）在和妈妈聊天：'妈，我没事，挺好的。' (报喜不报忧)
+    - **${userName} 提到TA生病了** -> 你（角色）在和药店聊天：'请帮我把这些药送到 [用户地址]，匿名。'
+    - **与 ${userName} 关系暧昧** -> 你（角色）在和神秘人聊天：'计划照旧，但...我有点犹豫了。'
+
+- 联系人: 
+  - 生成 5-10 个你可能认识或联系的人 (必须包含【${userName}】)。
+  - 联系人要符合你的社交圈和[上下文信息]。
+
+JSON 输出: 严格按以下 JSON 格式输出，不要包含任何其他文字。
 \`\`\`json
 {
   "contacts": [
@@ -19466,21 +19729,19 @@ JSON 格式：
                 }
             }
 
+            // 【V2 版 - 灵活续写式】微信详情页刷新 Prompt
             const systemPrompt = `
-身份：你是一个聊天记录生成器。现在需要生成角色【${character.name}】和【${contact.name}】之间接下来的5-10条对话。
-任务：模拟这两个人的自然对话，生成他们之间一段完整的互动场景。
-
-角色信息：
-- 【${character.name}】性格：${character.persona}
-- 【${contact.name}】是角色的联系人
+身份：你是一个聊天记录的【续写编剧】。
+任务：生成角色【${character.name}】和【${contact.name}】之间接下来的5-10条对话。
 
 要求：
-- 生成5-10条消息，让双方轮流对话，形成流畅的聊天场景
-- 消息要简短、口语化，符合微信聊天风格
-- 可以包含多个话题转折，让对话更生动有趣
-- 内容要符合双方的性格和关系，自然流畅
-- sender为"ai"表示角色${character.name}发的，sender为"other"表示联系人${contact.name}发的
-- 输出纯JSON格式，不要包含任何其他文字
+- 【【【故事性要求】】】: 续写的内容必须【【推进一个小剧情】】。它可以是：\`解决一个旧矛盾\`、\`产生一个新误会\`、\`分享一个秘密\`、\`制定一个计划\`，或者\`进行一次有深度的情感交流\`。
+- 【【【绝对禁止】】】: 绝对禁止生成 "吃饭没"、"在干嘛"、"晚安" 等无意义的日常寒暄。
+- 模拟这两个人的自然对话，生成他们之间一段完整的互动场景。
+- 消息要简短、口语化，符合微信聊天风格。
+- 内容要符合双方的性格和关系，自然流畅。
+- sender为"ai"表示角色${character.name}发的，sender为"other"表示联系人${contact.name}发的。
+- 输出纯JSON格式，不要包含任何其他文字。
 
 JSON 格式示例：
 \`\`\`json
@@ -19496,13 +19757,18 @@ JSON 格式示例：
 \`\`\`
 
 上下文信息：
-[当前时间]: ${new Date().toLocaleString()}
-[微信内的聊天记录]:
-${historyText || '（微信内还没有聊天记录）'}
-${mainChatHistoryText ? `\n[主对话框的最近聊天(与${userName})]: \n${mainChatHistoryText}` : ''}
 
-[角色记忆]: ${context.memoryContext || '无'}
-[世界设定]: ${context.worldBookContext || '无'}
+[角色信息]:
+- 角色【${character.name}】性格：${character.persona}
+
+[联系人信息]:
+- 联系人【${contact.name}】
+
+[角色的主线生活 (与 ${userName} 的最近互动)]: 
+${mainChatHistoryText ? `\n${mainChatHistoryText}` : '（暂无）'}
+
+[微信内的聊天记录 (这是他们【已经】聊过的内容，请你续写)]:
+${historyText || '（他们还没有开始聊天）'}
 `;
 
             try {
@@ -25900,27 +26166,31 @@ ${chatHistory.map(m => `${m.sender === 'user' ? '对方' : '我'}: ${m.content}`
                 const diaryContent = result.choices[0].message.content.trim();
 
                 if (diaryContent) {
-                    if (!diaryData[characterId]) {
-                        diaryData[characterId] = [];
-                    }
                     const newDiaryEntry = {
                         id: `diary_${Date.now()}`,
                         timestamp: Date.now(),
                         content: diaryContent
                     };
-                    diaryData[characterId].push(newDiaryEntry);
-                    saveData('diaryData', diaryData);
-                    showNotificationDot('diary'); // 【新增】显示日记红点
                     
-                    // V33.0 新增：记录日记更新状态
-                    let updatedDiaries = loadData('updatedDiaries', []);
-                    if (!updatedDiaries.includes(characterId)) {
-                        updatedDiaries.push(characterId);
-                        saveData('updatedDiaries', updatedDiaries);
+                    // V2.0 修复：统一保存到 characters[].diaries
+                    const character = characters.find(c => c.id === characterId);
+                    if (character) {
+                        if (!character.diaries) character.diaries = [];
+                        character.diaries.push(newDiaryEntry);
+                        saveData('characters', characters);
+                        
+                        showNotificationDot('diary'); // 【新增】显示日记红点
+                        
+                        // V33.0 新增：记录日记更新状态
+                        let updatedDiaries = loadData('updatedDiaries', []);
+                        if (!updatedDiaries.includes(characterId)) {
+                            updatedDiaries.push(characterId);
+                            saveData('updatedDiaries', updatedDiaries);
+                        }
+                        
+                        showMessageBox(`嘘... ${character.name} 好像刚刚写了些什么。`);
+                        console.log(`【AI日记系统】：${character.name} 的新日记已保存。`);
                     }
-                    
-                    showMessageBox(`嘘... ${character.name} 好像刚刚写了些什么。`);
-                    console.log(`【AI日记系统】：${character.name} 的新日记已保存。`);
                 }
             } catch (error) {
                 console.error(`【AI日记系统】：为 ${character.name} 生成日记时失败:`, error);
@@ -31775,12 +32045,8 @@ function replyToComment(momentId, commentId, originalAuthor) {
             const entryId = textarea.dataset.entryId;
             
             if (entryId) {
-                // 更新现有日记
-                const entry = currentOpenBook.entries.find(e => e.id === entryId);
-                if (entry) {
-                    entry.content = content;
-                    entry.lastModified = Date.now();
-                }
+                // 更新现有日记（调用统一的更新函数）
+                updateDiaryEntry(entryId, content);
             } else {
                 // 创建新日记
                 const newEntry = {
@@ -31800,12 +32066,24 @@ function replyToComment(momentId, commentId, originalAuthor) {
                     saveData('notebookData', notebookData);
                     showMessageBox('笔记本内容已保存！');
                 } else {
-                    // 更新日记数据
-                    if (!diaryData[currentOpenBook.ownerId]) {
-                        diaryData[currentOpenBook.ownerId] = [];
+                    // V2.0 修复：统一保存到正确的位置
+                    const ownerId = currentOpenBook.ownerId;
+                    if (ownerId === 'user') {
+                        // 用户日记保存到旧结构
+                        if (!diaryData['user']) {
+                            diaryData['user'] = [];
+                        }
+                        diaryData['user'].push(newEntry);
+                        saveData('diaryData', diaryData);
+                    } else {
+                        // AI角色日记保存到 characters[].diaries
+                        const character = characters.find(c => c.id === ownerId);
+                        if (character) {
+                            if (!character.diaries) character.diaries = [];
+                            character.diaries.push(newEntry);
+                            saveData('characters', characters);
+                        }
                     }
-                    diaryData[currentOpenBook.ownerId].push(newEntry);
-                    saveData('diaryData', diaryData);
                     showMessageBox('日记已保存！');
                 }
                 
@@ -31814,13 +32092,14 @@ function replyToComment(momentId, commentId, originalAuthor) {
             }
         }
 
-        // 更新日记条目
+        // 更新日记条目 (V2.0 - 修复为统一保存到 characters[].diaries)
         function updateDiaryEntry(entryId, newContent) {
             // 先检查是否是笔记本条目
             if (currentOpenBook.isNotebook) {
                 const entryIndex = currentOpenBook.entries.findIndex(entry => entry.id === entryId);
                 if (entryIndex !== -1) {
                     currentOpenBook.entries[entryIndex].content = newContent;
+                    currentOpenBook.entries[entryIndex].lastModified = Date.now();
                     currentOpenBook.notebookData.entries = currentOpenBook.entries;
                     currentOpenBook.notebookData.lastModified = Date.now();
                     saveData('notebookData', notebookData);
@@ -31828,15 +32107,37 @@ function replyToComment(momentId, commentId, originalAuthor) {
                 }
             }
             
-            // 检查日记数据
-            Object.keys(diaryData).forEach(ownerId => {
-                const entryIndex = diaryData[ownerId].findIndex(entry => entry.id === entryId);
+            // V2.0 修复：统一保存到 characters[].diaries
+            const ownerId = currentOpenBook.ownerId;
+            
+            if (ownerId === 'user') {
+                // 用户日记仍保存到旧结构（暂时保持兼容）
+                if (!diaryData['user']) diaryData['user'] = [];
+                const entryIndex = diaryData['user'].findIndex(entry => entry.id === entryId);
                 if (entryIndex !== -1) {
-                    diaryData[ownerId][entryIndex].content = newContent;
+                    diaryData['user'][entryIndex].content = newContent;
+                    diaryData['user'][entryIndex].lastModified = Date.now();
                     saveData('diaryData', diaryData);
-                    return;
                 }
-            });
+            } else {
+                // AI角色日记保存到 characters[].diaries
+                const character = characters.find(c => c.id === ownerId);
+                if (character) {
+                    if (!character.diaries) character.diaries = [];
+                    const entryIndex = character.diaries.findIndex(entry => entry.id === entryId);
+                    if (entryIndex !== -1) {
+                        character.diaries[entryIndex].content = newContent;
+                        character.diaries[entryIndex].lastModified = Date.now();
+                        // 同步更新 currentOpenBook.entries
+                        const currentEntryIndex = currentOpenBook.entries.findIndex(e => e.id === entryId);
+                        if (currentEntryIndex !== -1) {
+                            currentOpenBook.entries[currentEntryIndex].content = newContent;
+                            currentOpenBook.entries[currentEntryIndex].lastModified = Date.now();
+                        }
+                        saveData('characters', characters);
+                    }
+                }
+            }
         }
 
         // 更换日记本封面
@@ -35679,12 +35980,24 @@ function addNewEventListeners() {
                             currentOpenBook.notebookData.lastModified = Date.now();
                             saveData('notebookData', notebookData);
                         } else {
-                            // 更新日记数据
-                            if (!diaryData[currentOpenBook.ownerId]) {
-                                diaryData[currentOpenBook.ownerId] = [];
+                            // V2.0 修复：统一保存到正确位置
+                            const ownerId = currentOpenBook.ownerId;
+                            if (ownerId === 'user') {
+                                // 用户日记保存到旧结构
+                                if (!diaryData['user']) {
+                                    diaryData['user'] = [];
+                                }
+                                diaryData['user'].push(newEntry);
+                                saveData('diaryData', diaryData);
+                            } else {
+                                // AI角色日记保存到 characters[].diaries
+                                const character = characters.find(c => c.id === ownerId);
+                                if (character) {
+                                    if (!character.diaries) character.diaries = [];
+                                    character.diaries.push(newEntry);
+                                    saveData('characters', characters);
+                                }
                             }
-                            diaryData[currentOpenBook.ownerId].push(newEntry);
-                            saveData('diaryData', diaryData);
                         }
                         
                         // 跳转到新添加的页面
@@ -36616,28 +36929,84 @@ ${recentMessages.map(m => `${m.sender === 'user' ? userName : character.name}: $
                 const aiMemoResponse = await callAI(memoPrompt, "生成位置和备忘录");
 
                 if (aiMemoResponse) {
-                    const jsonMatch = aiMemoResponse.match(/```json([\s\S]*?)```/);
-                    if (!jsonMatch) throw new Error("AI 返回内容非 JSON 格式");
-                    
-                    const data = JSON.parse(jsonMatch[1]);
-                    charLocation = data.location || "信号不稳定...";
-                    memoItems = data.memo || [];
-                    if (memoItems.length === 0) memoItems = ["还没有计划..."];
+                        // --- 【【【【【 全新健壮型 JSON 解析器 START 】】】】】 ---
+                        let parsedData = null; // 用于存放最终解析的数据
+                        
+                        // 尝试方法1: 匹配 ```json ... ```
+                        const jsonMatch = aiMemoResponse.match(/```json([\s\S]*?)```/);
+                        if (jsonMatch) {
+                            try {
+                                parsedData = JSON.parse(jsonMatch[1].trim());
+                                console.log("成功解析 JSON (方法1)");
+                            } catch (e) {
+                                console.warn("方法1解析失败:", e.message);
+                            }
+                        }
+                        
+                        // 尝试方法2: 匹配 ``` ... ``` (不带json标记)
+                        if (!parsedData) {
+                            const codeMatch = aiMemoResponse.match(/```([\s\S]*?)```/);
+                            if (codeMatch) {
+                                try {
+                                    parsedData = JSON.parse(codeMatch[1].trim());
+                                    console.log("成功解析 JSON (方法2)");
+                                } catch (e) {
+                                    console.warn("方法2解析失败:", e.message);
+                                }
+                            }
+                        }
+                        
+                        // 尝试方法3: 直接解析整个返回内容
+                        if (!parsedData) {
+                            try {
+                                parsedData = JSON.parse(aiMemoResponse.trim());
+                                console.log("成功解析 JSON (方法3)");
+                            } catch (e) {
+                                console.warn("方法3解析失败:", e.message);
+                            }
+                        }
+                        
+                        // 尝试方法4: 查找第一个 { 到最后一个 }
+                        if (!parsedData) {
+                            const firstBrace = aiMemoResponse.indexOf('{');
+                            const lastBrace = aiMemoResponse.lastIndexOf('}');
+                            
+                            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                                try {
+                                    const jsonStr = aiMemoResponse.substring(firstBrace, lastBrace + 1);
+                                    parsedData = JSON.parse(jsonStr);
+                                    console.log("成功解析 JSON (方法4)");
+                                } catch (e) {
+                                    console.warn("方法4解析失败:", e.message, "截获字符串:", jsonStr);
+                                }
+                            }
+                        }
+                        
+                        // --- 【【【【【 全新健壮型 JSON 解析器 END 】】】】】 ---
 
-                    // 保存到缓存
-                    saveData(`char_phone_data_${characterId}`, {
-                        location: charLocation,
-                        memo: memoItems
-                    });
-                } else {
-                    throw new Error("AI 返回内容为空");
+                        if (parsedData && parsedData.location && parsedData.memo) {
+                            charLocation = parsedData.location || "信号不稳定...";
+                            memoItems = parsedData.memo || [];
+                            if (memoItems.length === 0) memoItems = ["还没有计划..."];
+
+                            // 保存到缓存
+                            saveData(`char_phone_data_${characterId}`, {
+                                location: charLocation,
+                                memo: memoItems
+                            });
+                        } else {
+                            console.error("AI原始返回内容:", aiMemoResponse); // 打印原始错误信息
+                            throw new Error("AI 返回内容非 JSON 格式"); // 抛出你遇到的错误
+                        }
+                    } else {
+                        throw new Error("AI 返回内容为空");
+                    }
+                } catch (error) {
+                    console.error("生成备忘录/位置失败:", error);
+                    charLocation = "定位失败";
+                    memoItems = [`备忘录加载失败: ${error.message}`];
+                    showCharPhoneMessageBox(`刷新失败: ${error.message}`);
                 }
-            } catch (error) {
-                console.error("生成备忘录/位置失败:", error);
-                charLocation = "定位失败";
-                memoItems = [`备忘录加载失败: ${error.message}`];
-                showCharPhoneMessageBox(`刷新失败: ${error.message}`);
-            }
 
             // 停止旋转动画
             if (refreshBtn) {
@@ -45586,7 +45955,8 @@ async function generateNewLetter(characterId) {
 
     // 收集所有需要的信息
     const context = gatherAIContext(characterId);
-    const diaryContext = (diaryData[characterId] || []).slice(-5).map(d => `[日期: ${new Date(d.timestamp).toLocaleDateString()}] ${d.content}`).join('\n---\n');
+    // V2.0 修复：从 characters[].diaries 读取日记
+    const diaryContext = (character.diaries || []).slice(-5).map(d => `[日期: ${new Date(d.timestamp).toLocaleDateString()}] ${d.content}`).join('\n---\n');
 
     const systemPrompt = `
 # 角色与任务
